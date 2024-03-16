@@ -1,44 +1,58 @@
-﻿/*
- * Copyright (c) Contributors, http://opensimulator.org/
- * See CONTRIBUTORS.TXT for a full list of copyright holders.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the OpenSimulator Project nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+﻿/// <license>
+/// Copyright (c) Contributors, http://opensimulator.org/
+/// See CONTRIBUTORS.TXT for a full list of copyright holders.
+///
+/// Redistribution and use in source and binary forms, with or without
+/// modification, are permitted provided that the following conditions are met:
+///     * Redistributions of source code must retain the above copyright
+///       notice, this list of conditions and the following disclaimer.
+///     * Redistributions in binary form must reproduce the above copyright
+///       notice, this list of conditions and the following disclaimer in the
+///       documentation and/or other materials provided with the distribution.
+///     * Neither the name of the OpenSimulator Project nor the
+///       names of its contributors may be used to endorse or promote products
+///       derived from this software without specific prior written permission.
+///
+/// THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
+/// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+/// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+/// DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+/// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+/// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+/// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+/// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+/// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+/// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/// </license>
 
+/// <summary>
+/// System Library Using 
+/// References First
+/// </summary>
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Xml;
-using System.Collections.Generic;
-using System.IO;
-using Nini.Config;
+
+/// <summary>
+/// Platform Library Using 
+/// References 
+/// </summary>
 using OpenSim.Framework;
-using OpenSim.Server.Base;
-using OpenSim.Services.Interfaces;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Framework.ServiceAuth;
+using OpenSim.Server.Base;
 using OpenSim.Server.Handlers.Base;
+using OpenSim.Services.Interfaces;
+
+/// <summary>
+/// Additional Third Party 
+/// Library Using References
+/// </summary>
 using log4net;
+using Nini.Config;
 using OpenMetaverse;
 
 namespace OpenSim.Groups
@@ -54,19 +68,21 @@ namespace OpenSim.Groups
             base(config, server, configName)
         {
             string key = string.Empty;
+
             if (configName != String.Empty)
+            {
                 m_ConfigName = configName;
+            }
 
             m_log.DebugFormat("[Groups.RobustConnector]: Starting with config name {0}", m_ConfigName);
 
             IConfig groupsConfig = config.Configs[m_ConfigName];
+
             if (groupsConfig != null)
             {
                 key = groupsConfig.GetString("SecretKey", string.Empty);
                 m_log.DebugFormat("[Groups.RobustConnector]: Starting with secret key {0}", key);
             }
-//            else
-//                m_log.DebugFormat("[Groups.RobustConnector]: Unable to find {0} section in configuration", m_ConfigName);
 
             m_GroupsService = new GroupsService(config);
 
@@ -89,27 +105,25 @@ namespace OpenSim.Groups
         }
 
         protected override byte[] ProcessRequest(string path, Stream requestData,
-                IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
+            IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
         {
             StreamReader sr = new StreamReader(requestData);
             string body = sr.ReadToEnd();
             sr.Close();
             body = body.Trim();
 
-            //m_log.DebugFormat("[XXX]: query String: {0}", body);
-
             try
             {
-                Dictionary<string, object> request =
-                        ServerUtils.ParseQueryString(body);
+                Dictionary<string, object> request = ServerUtils.ParseQueryString(body);
 
                 if (!request.ContainsKey("METHOD"))
+                {
                     return FailureResult();
+                }
 
                 string method = request["METHOD"].ToString();
                 request.Remove("METHOD");
 
-//                m_log.DebugFormat("[Groups.Handler]: {0}", method);
                 switch (method)
                 {
                     case "PUTGROUP":
@@ -149,6 +163,7 @@ namespace OpenSim.Groups
                     case "FINDGROUPS":
                         return HandleFindGroups(request);
                 }
+
                 m_log.DebugFormat("[GROUPS HANDLER]: unknown method request: {0}", method);
             }
             catch (Exception e)
@@ -164,42 +179,51 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             ExtendedGroupRecord grec = GroupsDataUtils.GroupRecord(request);
-            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("OP"))
-                NullResult(result, "Bad network data");
 
+            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("OP"))
+            {
+                NullResult(result, "Bad network data");
+            }
             else
             {
                 string RequestingAgentID = request["RequestingAgentID"].ToString();
                 string reason = string.Empty;
                 string op = request["OP"].ToString();
+
                 if (op == "ADD")
                 {
-                    grec.GroupID = m_GroupsService.CreateGroup(RequestingAgentID, grec.GroupName, grec.Charter, grec.ShowInList, grec.GroupPicture, grec.MembershipFee,
+                    grec.GroupID = m_GroupsService.CreateGroup(RequestingAgentID, grec.GroupName,
+                        grec.Charter, grec.ShowInList, grec.GroupPicture, grec.MembershipFee,
                         grec.OpenEnrollment, grec.AllowPublish, grec.MaturePublish, grec.FounderID, out reason);
-
                 }
                 else if (op == "UPDATE")
                 {
-                    m_GroupsService.UpdateGroup(RequestingAgentID, grec.GroupID, grec.Charter, grec.ShowInList, grec.GroupPicture, grec.MembershipFee,
+                    m_GroupsService.UpdateGroup(RequestingAgentID, grec.GroupID, grec.Charter,
+                        grec.ShowInList, grec.GroupPicture, grec.MembershipFee,
                         grec.OpenEnrollment, grec.AllowPublish, grec.MaturePublish);
-
                 }
 
                 if (grec.GroupID != UUID.Zero)
                 {
                     grec = m_GroupsService.GetGroupRecord(RequestingAgentID, grec.GroupID);
+
                     if (grec == null)
+                    {
                         NullResult(result, "Internal Error");
+                    }
                     else
+                    {
                         result["RESULT"] = GroupsDataUtils.GroupRecord(grec);
+                    }
                 }
                 else
+                {
                     NullResult(result, reason);
+                }
             }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -208,11 +232,14 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 string RequestingAgentID = request["RequestingAgentID"].ToString();
                 ExtendedGroupRecord grec = null;
+
                 if (request.ContainsKey("GroupID"))
                 {
                     UUID groupID = new UUID(request["GroupID"].ToString());
@@ -225,14 +252,17 @@ namespace OpenSim.Groups
                 }
 
                 if (grec == null)
+                {
                     NullResult(result, "Group not found");
+                }
                 else
+                {
                     result["RESULT"] = GroupsDataUtils.GroupRecord(grec);
+                }
             }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -242,7 +272,9 @@ namespace OpenSim.Groups
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("AgentID") ||
                 !request.ContainsKey("GroupID") || !request.ContainsKey("RoleID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 UUID groupID = new UUID(request["GroupID"].ToString());
@@ -253,23 +285,31 @@ namespace OpenSim.Groups
                 string reason = string.Empty;
 
                 if (request.ContainsKey("AccessToken"))
+                {
                     token = request["AccessToken"].ToString();
+                }
 
                 if (!m_GroupsService.AddAgentToGroup(requestingAgentID, agentID, groupID, roleID, token, out reason))
+                {
                     NullResult(result, reason);
+                }
                 else
                 {
                     GroupMembershipData membership = m_GroupsService.GetAgentGroupMembership(requestingAgentID, agentID, groupID);
+
                     if (membership == null)
+                    {
                         NullResult(result, "Internal error");
+                    }
                     else
+                    {
                         result["RESULT"] = GroupsDataUtils.GroupMembershipData((ExtendedGroupMembershipData)membership);
+                    }
                 }
             }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -278,7 +318,9 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("AgentID") || !request.ContainsKey("GroupID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 UUID groupID = new UUID(request["GroupID"].ToString());
@@ -286,12 +328,15 @@ namespace OpenSim.Groups
                 string requestingAgentID = request["RequestingAgentID"].ToString();
 
                 if (!m_GroupsService.RemoveAgentFromGroup(requestingAgentID, agentID, groupID))
+                {
                     NullResult(result, string.Format("Insufficient permissions.", agentID));
+                }
                 else
+                {
                     result["RESULT"] = "true";
+                }
             }
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(ServerUtils.BuildXmlResponse(result));
         }
 
@@ -300,19 +345,26 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("AgentID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 string agentID = request["AgentID"].ToString();
                 UUID groupID = UUID.Zero;
+
                 if (request.ContainsKey("GroupID"))
+                {
                     groupID = new UUID(request["GroupID"].ToString());
+                }
+
                 string requestingAgentID = request["RequestingAgentID"].ToString();
                 bool all = request.ContainsKey("ALL");
 
                 if (!all)
                 {
                     ExtendedGroupMembershipData membership = null;
+
                     if (groupID == UUID.Zero)
                     {
                         membership = m_GroupsService.GetAgentActiveMembership(requestingAgentID, agentID);
@@ -323,13 +375,18 @@ namespace OpenSim.Groups
                     }
 
                     if (membership == null)
+                    {
                         NullResult(result, "No such membership");
+                    }
                     else
+                    {
                         result["RESULT"] = GroupsDataUtils.GroupMembershipData(membership);
+                    }
                 }
                 else
                 {
                     List<GroupMembershipData> memberships = m_GroupsService.GetAgentGroupMemberships(requestingAgentID, agentID);
+
                     if (memberships == null || (memberships != null && memberships.Count == 0))
                     {
                         NullResult(result, "No memberships");
@@ -338,8 +395,11 @@ namespace OpenSim.Groups
                     {
                         Dictionary<string, object> dict = new Dictionary<string, object>();
                         int i = 0;
+
                         foreach (GroupMembershipData m in memberships)
+                        {
                             dict["m-" + i++] = GroupsDataUtils.GroupMembershipData((ExtendedGroupMembershipData)m);
+                        }
 
                         result["RESULT"] = dict;
                     }
@@ -348,7 +408,6 @@ namespace OpenSim.Groups
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -357,13 +416,16 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 UUID groupID = new UUID(request["GroupID"].ToString());
                 string requestingAgentID = request["RequestingAgentID"].ToString();
 
                 List<ExtendedGroupMembersData> members = m_GroupsService.GetGroupMembers(requestingAgentID, groupID);
+
                 if (members == null || (members != null && members.Count == 0))
                 {
                     NullResult(result, "No members");
@@ -372,6 +434,7 @@ namespace OpenSim.Groups
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     int i = 0;
+
                     foreach (ExtendedGroupMembersData m in members)
                     {
                         dict["m-" + i++] = GroupsDataUtils.GroupMembersData(m);
@@ -383,7 +446,6 @@ namespace OpenSim.Groups
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -391,33 +453,39 @@ namespace OpenSim.Groups
         {
             Dictionary<string, object> result = new Dictionary<string, object>();
 
-            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") || !request.ContainsKey("RoleID") ||
-                !request.ContainsKey("Name") || !request.ContainsKey("Description") || !request.ContainsKey("Title") ||
-                !request.ContainsKey("Powers") || !request.ContainsKey("OP")) 
+            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") || 
+                !request.ContainsKey("RoleID") || !request.ContainsKey("Name") || 
+                !request.ContainsKey("Description") || !request.ContainsKey("Title") ||
+                !request.ContainsKey("Powers") || !request.ContainsKey("OP"))
+            {
                 NullResult(result, "Bad network data");
-
+            }
             else
             {
                 string op = request["OP"].ToString();
                 string reason = string.Empty;
 
                 bool success = false;
+
                 if (op == "ADD")
+                {
                     success = m_GroupsService.AddGroupRole(request["RequestingAgentID"].ToString(), new UUID(request["GroupID"].ToString()),
                         new UUID(request["RoleID"].ToString()), request["Name"].ToString(), request["Description"].ToString(),
                         request["Title"].ToString(), UInt64.Parse(request["Powers"].ToString()), out reason);
+                }
 
                 else if (op == "UPDATE")
+                {
                     success = m_GroupsService.UpdateGroupRole(request["RequestingAgentID"].ToString(), new UUID(request["GroupID"].ToString()),
                         new UUID(request["RoleID"].ToString()), request["Name"].ToString(), request["Description"].ToString(),
                         request["Title"].ToString(), UInt64.Parse(request["Powers"].ToString()));
+                }
 
                 result["RESULT"] = success.ToString();
             }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -426,16 +494,16 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") || !request.ContainsKey("RoleID"))
+            {
                 NullResult(result, "Bad network data");
-
+            }
             else
             {
-                m_GroupsService.RemoveGroupRole(request["RequestingAgentID"].ToString(), new UUID(request["GroupID"].ToString()),
-                    new UUID(request["RoleID"].ToString()));
+                m_GroupsService.RemoveGroupRole(request["RequestingAgentID"].ToString(), 
+                    new UUID(request["GroupID"].ToString()), new UUID(request["RoleID"].ToString()));
                 result["RESULT"] = "true";
             }
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(ServerUtils.BuildXmlResponse(result));
         }
 
@@ -444,13 +512,16 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 UUID groupID = new UUID(request["GroupID"].ToString());
                 string requestingAgentID = request["RequestingAgentID"].ToString();
 
                 List<GroupRolesData> roles = m_GroupsService.GetGroupRoles(requestingAgentID, groupID);
+
                 if (roles == null || (roles != null && roles.Count == 0))
                 {
                     NullResult(result, "No members");
@@ -459,8 +530,11 @@ namespace OpenSim.Groups
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     int i = 0;
+
                     foreach (GroupRolesData r in roles)
+                    {
                         dict["r-" + i++] = GroupsDataUtils.GroupRolesData(r);
+                    }
 
                     result["RESULT"] = dict;
                 }
@@ -468,7 +542,6 @@ namespace OpenSim.Groups
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -477,13 +550,16 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 UUID groupID = new UUID(request["GroupID"].ToString());
                 string requestingAgentID = request["RequestingAgentID"].ToString();
 
                 List<ExtendedGroupRoleMembersData> rmembers = m_GroupsService.GetGroupRoleMembers(requestingAgentID, groupID);
+
                 if (rmembers == null || (rmembers != null && rmembers.Count == 0))
                 {
                     NullResult(result, "No members");
@@ -492,8 +568,11 @@ namespace OpenSim.Groups
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     int i = 0;
+
                     foreach (ExtendedGroupRoleMembersData rm in rmembers)
+                    {
                         dict["rm-" + i++] = GroupsDataUtils.GroupRoleMembersData(rm);
+                    }
 
                     result["RESULT"] = dict;
                 }
@@ -501,7 +580,6 @@ namespace OpenSim.Groups
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -509,29 +587,33 @@ namespace OpenSim.Groups
         {
             Dictionary<string, object> result = new Dictionary<string, object>();
 
-            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") || !request.ContainsKey("RoleID") ||
-                !request.ContainsKey("AgentID") || !request.ContainsKey("OP"))
+            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") || 
+                !request.ContainsKey("RoleID") || !request.ContainsKey("AgentID") || !request.ContainsKey("OP"))
+            {
                 NullResult(result, "Bad network data");
-
+            }
             else
             {
                 string op = request["OP"].ToString();
 
                 bool success = false;
-                if (op == "ADD")
-                    success = m_GroupsService.AddAgentToGroupRole(request["RequestingAgentID"].ToString(), request["AgentID"].ToString(), 
-                        new UUID(request["GroupID"].ToString()), new UUID(request["RoleID"].ToString()));
 
-                else if (op == "DELETE")
-                    success = m_GroupsService.RemoveAgentFromGroupRole(request["RequestingAgentID"].ToString(), request["AgentID"].ToString(), 
+                if (op == "ADD")
+                {
+                    success = m_GroupsService.AddAgentToGroupRole(request["RequestingAgentID"].ToString(), request["AgentID"].ToString(),
                         new UUID(request["GroupID"].ToString()), new UUID(request["RoleID"].ToString()));
+                }
+                else if (op == "DELETE")
+                {
+                    success = m_GroupsService.RemoveAgentFromGroupRole(request["RequestingAgentID"].ToString(), request["AgentID"].ToString(),
+                        new UUID(request["GroupID"].ToString()), new UUID(request["RoleID"].ToString()));
+                }
 
                 result["RESULT"] = success.ToString();
             }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -540,7 +622,9 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") || !request.ContainsKey("AgentID"))
+            {
                 NullResult(result, "Bad network data");
+            }
             else
             {
                 UUID groupID = new UUID(request["GroupID"].ToString());
@@ -548,6 +632,7 @@ namespace OpenSim.Groups
                 string requestingAgentID = request["RequestingAgentID"].ToString();
 
                 List<GroupRolesData> roles = m_GroupsService.GetAgentGroupRoles(requestingAgentID, agentID, groupID);
+
                 if (roles == null || (roles != null && roles.Count == 0))
                 {
                     NullResult(result, "No members");
@@ -556,8 +641,11 @@ namespace OpenSim.Groups
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     int i = 0;
+
                     foreach (GroupRolesData r in roles)
+                    {
                         dict["r-" + i++] = GroupsDataUtils.GroupRolesData(r);
+                    }
 
                     result["RESULT"] = dict;
                 }
@@ -565,7 +653,6 @@ namespace OpenSim.Groups
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -590,15 +677,17 @@ namespace OpenSim.Groups
                         request["AgentID"].ToString(), new UUID(request["GroupID"].ToString()));
 
                     if (group == null)
+                    {
                         NullResult(result, "Internal error");
+                    }
                     else
+                    {
                         result["RESULT"] = GroupsDataUtils.GroupMembershipData(group);
+                    }
 
                     string xmlString = ServerUtils.BuildXmlResponse(result);
 
-                    //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
                     return Util.UTF8NoBomEncoding.GetBytes(xmlString);
-
                 }
                 else if (op == "ROLE" && request.ContainsKey("RoleID"))
                 {
@@ -609,17 +698,18 @@ namespace OpenSim.Groups
 
                 return Util.UTF8NoBomEncoding.GetBytes(ServerUtils.BuildXmlResponse(result));
             }
-
         }
 
         byte[] HandleUpdateMembership(Dictionary<string, object> request)
         {
             Dictionary<string, object> result = new Dictionary<string, object>();
 
-            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("AgentID") || !request.ContainsKey("GroupID") ||
-                !request.ContainsKey("AcceptNotices") || !request.ContainsKey("ListInProfile"))
+            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("AgentID") || 
+                !request.ContainsKey("GroupID") || !request.ContainsKey("AcceptNotices") || 
+                !request.ContainsKey("ListInProfile"))
+            {
                 NullResult(result, "Bad network data");
-
+            }
             else
             {
                 m_GroupsService.UpdateMembership(request["RequestingAgentID"].ToString(), request["AgentID"].ToString(), new UUID(request["GroupID"].ToString()),
@@ -628,7 +718,6 @@ namespace OpenSim.Groups
                 result["RESULT"] = "true";
             }
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(ServerUtils.BuildXmlResponse(result));
         }
 
@@ -647,14 +736,13 @@ namespace OpenSim.Groups
                 string op = request["OP"].ToString();
 
                 if (op == "ADD" && request.ContainsKey("GroupID") && request.ContainsKey("RoleID") && request.ContainsKey("AgentID"))
-                {   
-                    bool success = m_GroupsService.AddAgentToGroupInvite(request["RequestingAgentID"].ToString(), 
+                {
+                    bool success = m_GroupsService.AddAgentToGroupInvite(request["RequestingAgentID"].ToString(),
                         new UUID(request["InviteID"].ToString()), new UUID(request["GroupID"].ToString()),
                         new UUID(request["RoleID"].ToString()), request["AgentID"].ToString());
 
                     result["RESULT"] = success.ToString();
                     return Util.UTF8NoBomEncoding.GetBytes(ServerUtils.BuildXmlResponse(result));
-
                 }
                 else if (op == "DELETE")
                 {
@@ -664,13 +752,17 @@ namespace OpenSim.Groups
                 }
                 else if (op == "GET")
                 {
-                    GroupInviteInfo invite = m_GroupsService.GetAgentToGroupInvite(request["RequestingAgentID"].ToString(), 
+                    GroupInviteInfo invite = m_GroupsService.GetAgentToGroupInvite(request["RequestingAgentID"].ToString(),
                         new UUID(request["InviteID"].ToString()));
 
                     if (invite != null)
+                    {
                         result["RESULT"] = GroupsDataUtils.GroupInviteInfo(invite);
+                    }
                     else
+                    {
                         result["RESULT"] = "NULL";
+                    }
 
                     return Util.UTF8NoBomEncoding.GetBytes(ServerUtils.BuildXmlResponse(result));
                 }
@@ -678,34 +770,46 @@ namespace OpenSim.Groups
                 NullResult(result, "Bad OP in request");
                 return Util.UTF8NoBomEncoding.GetBytes(ServerUtils.BuildXmlResponse(result));
             }
-
         }
 
         byte[] HandleAddNotice(Dictionary<string, object> request)
         {
             Dictionary<string, object> result = new Dictionary<string, object>();
 
-            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") || !request.ContainsKey("NoticeID") ||
-                !request.ContainsKey("FromName") || !request.ContainsKey("Subject") || !request.ContainsKey("Message") ||
+            if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("GroupID") ||
+                !request.ContainsKey("NoticeID") || !request.ContainsKey("FromName") ||
+                !request.ContainsKey("Subject") || !request.ContainsKey("Message") ||
                 !request.ContainsKey("HasAttachment"))
+            {
                 NullResult(result, "Bad network data");
-
+            }
             else
             {
-
                 bool hasAtt = bool.Parse(request["HasAttachment"].ToString());
                 byte attType = 0;
                 string attName = string.Empty;
                 string attOwner = string.Empty;
                 UUID attItem = UUID.Zero;
+
                 if (request.ContainsKey("AttachmentType"))
+                {
                     attType = byte.Parse(request["AttachmentType"].ToString());
+                }
+
                 if (request.ContainsKey("AttachmentName"))
+                {
                     attName = request["AttachmentName"].ToString();
+                }
+
                 if (request.ContainsKey("AttachmentItemID"))
+                {
                     attItem = new UUID(request["AttachmentItemID"].ToString());
+                }
+
                 if (request.ContainsKey("AttachmentOwnerID"))
+                {
                     attOwner = request["AttachmentOwnerID"].ToString();
+                }
 
                 bool success = m_GroupsService.AddGroupNotice(request["RequestingAgentID"].ToString(), new UUID(request["GroupID"].ToString()),
                         new UUID(request["NoticeID"].ToString()), request["FromName"].ToString(), request["Subject"].ToString(),
@@ -716,7 +820,6 @@ namespace OpenSim.Groups
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
 
-            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
@@ -725,37 +828,47 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID"))
+            {
                 NullResult(result, "Bad network data");
-
+            }
             else if (request.ContainsKey("NoticeID")) // just one
             {
-                GroupNoticeInfo notice =  m_GroupsService.GetGroupNotice(request["RequestingAgentID"].ToString(), new UUID(request["NoticeID"].ToString()));
+                GroupNoticeInfo notice = m_GroupsService.GetGroupNotice(request["RequestingAgentID"].ToString(), new UUID(request["NoticeID"].ToString()));
 
                 if (notice == null)
+                {
                     NullResult(result, "NO such notice");
+                }
                 else
+                {
                     result["RESULT"] = GroupsDataUtils.GroupNoticeInfo(notice);
-
+                }
             }
             else if (request.ContainsKey("GroupID")) // all notices for group
             {
                 List<ExtendedGroupNoticeData> notices = m_GroupsService.GetGroupNotices(request["RequestingAgentID"].ToString(), new UUID(request["GroupID"].ToString()));
 
                 if (notices == null || (notices != null && notices.Count == 0))
+                {
                     NullResult(result, "No notices");
+                }
                 else
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     int i = 0;
+
                     foreach (ExtendedGroupNoticeData n in notices)
+                    {
                         dict["n-" + i++] = GroupsDataUtils.GroupNoticeData(n);
+                    }
 
                     result["RESULT"] = dict;
                 }
-
             }
             else
+            {
                 NullResult(result, "Bad OP in request");
+            }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
@@ -766,27 +879,32 @@ namespace OpenSim.Groups
             Dictionary<string, object> result = new Dictionary<string, object>();
 
             if (!request.ContainsKey("RequestingAgentID") || !request.ContainsKey("Query"))
+            {
                 NullResult(result, "Bad network data");
+            }
 
             List<DirGroupsReplyData> hits = m_GroupsService.FindGroups(request["RequestingAgentID"].ToString(), request["Query"].ToString());
 
             if (hits == null || (hits != null && hits.Count == 0))
+            {
                 NullResult(result, "No hits");
+            }
             else
             {
                 Dictionary<string, object> dict = new Dictionary<string, object>();
                 int i = 0;
+
                 foreach (DirGroupsReplyData n in hits)
+                {
                     dict["n-" + i++] = GroupsDataUtils.DirGroupsReplyData(n);
+                }
 
                 result["RESULT"] = dict;
             }
 
-
             string xmlString = ServerUtils.BuildXmlResponse(result);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
-
 
         #region Helpers
 
@@ -811,6 +929,7 @@ namespace OpenSim.Groups
             string xmlString = ServerUtils.BuildXmlResponse(result);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
+
         #endregion
     }
 }

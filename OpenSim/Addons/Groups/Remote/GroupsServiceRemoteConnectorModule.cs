@@ -1,47 +1,59 @@
-﻿/*
- * Copyright (c) Contributors, http://opensimulator.org/
- * See CONTRIBUTORS.TXT for a full list of copyright holders.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the OpenSimulator Project nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+﻿/// <license>
+/// Copyright (c) Contributors, http://opensimulator.org/
+/// See CONTRIBUTORS.TXT for a full list of copyright holders.
+///
+/// Redistribution and use in source and binary forms, with or without
+/// modification, are permitted provided that the following conditions are met:
+///     * Redistributions of source code must retain the above copyright
+///       notice, this list of conditions and the following disclaimer.
+///     * Redistributions in binary form must reproduce the above copyright
+///       notice, this list of conditions and the following disclaimer in the
+///       documentation and/or other materials provided with the distribution.
+///     * Neither the name of the OpenSimulator Project nor the
+///       names of its contributors may be used to endorse or promote products
+///       derived from this software without specific prior written permission.
+///
+/// THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
+/// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+/// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+/// DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+/// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+/// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+/// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+/// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+/// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+/// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/// </license>
 
+/// <summary>
+/// System Library Using 
+/// References First
+/// </summary>
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Text;
+using System.Threading;
 
+/// <summary>
+/// Platform Library Using 
+/// References 
+/// </summary>
 using OpenSim.Framework;
-using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Interfaces;
+using OpenSim.Region.Framework.Scenes;
 using OpenSim.Server.Base;
 using OpenSim.Services.Interfaces;
 
-using OpenMetaverse;
-using Mono.Addins;
+/// <summary>
+/// Additional Third Party 
+/// Library Using References
+/// </summary>
 using log4net;
+using Mono.Addins;
 using Nini.Config;
+using OpenMetaverse;
 
 namespace OpenSim.Groups
 {
@@ -58,6 +70,7 @@ namespace OpenSim.Groups
         private RemoteConnectorCacheWrapper m_CacheWrapper;
 
         #region constructors
+
         public GroupsServiceRemoteConnectorModule()
         {
         }
@@ -67,15 +80,14 @@ namespace OpenSim.Groups
             Init(config);
             m_UserManagement = uman;
             m_CacheWrapper = new RemoteConnectorCacheWrapper(m_UserManagement);
-
         }
+
         #endregion
 
         private void Init(IConfigSource config)
         {
             m_GroupsService = new GroupsServiceRemoteConnector(config);
             m_Scenes = new List<Scene>();
-
         }
 
         #region ISharedRegionModule
@@ -83,11 +95,14 @@ namespace OpenSim.Groups
         public void Initialise(IConfigSource config)
         {
             IConfig groupsConfig = config.Configs["Groups"];
+
             if (groupsConfig == null)
+            {
                 return;
+            }
 
             if ((groupsConfig.GetBoolean("Enabled", false) == false)
-                    || (groupsConfig.GetString("ServicesConnectorModule", string.Empty) != Name))
+                || (groupsConfig.GetString("ServicesConnectorModule", string.Empty) != Name))
             {
                 return;
             }
@@ -111,7 +126,9 @@ namespace OpenSim.Groups
         public void AddRegion(Scene scene)
         {
             if (!m_Enabled)
+            {
                 return;
+            }
 
             m_log.DebugFormat("[Groups.RemoteConnector]: Registering {0} with {1}", this.Name, scene.RegionInfo.RegionName); 
             scene.RegisterModuleInterface<IGroupsServicesConnector>(this);
@@ -121,7 +138,9 @@ namespace OpenSim.Groups
         public void RemoveRegion(Scene scene)
         {
             if (!m_Enabled)
+            {
                 return;
+            }
 
             scene.UnregisterModuleInterface<IGroupsServicesConnector>(this);
             m_Scenes.Remove(scene);
@@ -130,7 +149,9 @@ namespace OpenSim.Groups
         public void RegionLoaded(Scene scene)
         {
             if (!m_Enabled)
+            {
                 return;
+            }
 
             if (m_UserManagement == null)
             {
@@ -184,7 +205,9 @@ namespace OpenSim.Groups
         public ExtendedGroupRecord GetGroupRecord(string RequestingAgentID, UUID GroupID, string GroupName)
         {
             if (GroupID == UUID.Zero && (GroupName == null || GroupName != null && GroupName == string.Empty))
+            {
                 return null;
+            }
 
             return m_CacheWrapper.GetGroupRecord(RequestingAgentID,GroupID,GroupName, delegate 
             { 
@@ -219,7 +242,6 @@ namespace OpenSim.Groups
             {
                 m_GroupsService.RemoveAgentFromGroup(RequestingAgentID, AgentID, GroupID);
             });
-
         }
 
         public void SetAgentActiveGroup(string RequestingAgentID, string AgentID, UUID GroupID)
@@ -254,7 +276,6 @@ namespace OpenSim.Groups
             });
         }
 
-
         public List<GroupMembersData> GetGroupMembers(string RequestingAgentID, UUID GroupID)
         {
             return m_CacheWrapper.GetGroupMembers(RequestingAgentID, GroupID, delegate
@@ -266,6 +287,7 @@ namespace OpenSim.Groups
         public bool AddGroupRole(string RequestingAgentID, UUID groupID, UUID roleID, string name, string description, string title, ulong powers, out string reason)
         {
             string r = string.Empty;
+
             bool success = m_CacheWrapper.AddGroupRole(groupID, roleID, description, name, powers, title, delegate
             {
                 return m_GroupsService.AddGroupRole(RequestingAgentID, groupID, roleID, name, description, title, powers, out r);
@@ -381,8 +403,8 @@ namespace OpenSim.Groups
 
             return m_CacheWrapper.AddGroupNotice(groupID, noticeID, notice, delegate
             {
-                return m_GroupsService.AddGroupNotice(RequestingAgentID, groupID, noticeID, fromName, subject, message,
-                            hasAttachment, attType, attName, attItemID, attOwnerID);
+                return m_GroupsService.AddGroupNotice(RequestingAgentID, groupID, noticeID, 
+                    fromName, subject, message, hasAttachment, attType, attName, attItemID, attOwnerID);
             });
         }
 
@@ -404,5 +426,4 @@ namespace OpenSim.Groups
 
         #endregion
     }
-
 }
