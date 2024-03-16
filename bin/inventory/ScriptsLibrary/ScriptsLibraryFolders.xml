@@ -47,12 +47,6 @@
     <Key Name="name" Value="OpenSim Specific Scripts"/>
     <Key Name="type" Value="10"/>
   </Section>
-  <Section Name=".Kan-ED Scripts">
-    <Key Name="folderID" Value="30000112-000f-0000-0000-000100bba024"/>
-    <Key Name="parentFolderID" Value="30000112-000f-0000-0000-000100bba002"/>
-    <Key Name="name" Value=".Kan-ED Scripts"/>
-    <Key Name="type" Value="10"/>
-  </Section>
   <Section Name=".Other testing scripts">
     <Key Name="folderID" Value="30000112-000f-0000-0000-000100bba025"/>
     <Key Name="parentFolderID" Value="30000112-000f-0000-0000-000100bba002"/>
