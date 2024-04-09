@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+- name: 💬 Community Feedback
+  url: https://github.com/My-Virtual-Worlds/My-OpenSim-Reworked-082x/discussions
+  about: Space for discussing and reviewing user-impacting bug reports and feature requests.

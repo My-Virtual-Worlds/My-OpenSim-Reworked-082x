@@ -1,0 +1,24 @@
+name: Enhancement request
+description: Enhancement request
+labels: [enhancement, triage]
+body:
+- type: markdown
+  attributes:
+    value: |
+      - Write a descriptive enhancement request title above.
+      - Search [open](https://github.com/My-Virtual-Worlds/My-OpenSim-Reworked-082x/issues?q=is%3Aopen+label%3Abug+is%3Aissue) bugs to ensure that the issue has not already been identified.
+
+- type: textarea
+  attributes:
+    label: Environment
+    description: About Virtuall World Platform Text
+    placeholder: ex. My Virtual World Platform ...
+  validations:
+    required: true
+
+- type: textarea
+  attributes:
+    label: Description
+    description: Explain the enhancement request.
+  validations:
+    required: true
