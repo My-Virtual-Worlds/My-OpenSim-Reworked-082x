@@ -1,28 +1,3 @@
-#region BSD License
-/*
-Copyright (c) 2004 Matthew Holmes (matthew@wildfiregames.com)
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this list of conditions 
-  and the following disclaimer. 
-* Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
-  and the following disclaimer in the documentation and/or other materials provided with the 
-  distribution. 
-* The name of the author may not be used to endorse or promote products derived from this software 
-  without specific prior written permission. 
-
-THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, 
-BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-#endregion
-
 using System;
 using System.IO;
 using System.Text;
@@ -31,38 +6,30 @@ using Prebuild.Core.Attributes;
 using Prebuild.Core.Interfaces;
 using Prebuild.Core.Nodes;
 using Prebuild.Core.Utilities;
+using System.CodeDom.Compiler;
 
 namespace Prebuild.Core.Targets
 {
+
     /// <summary>
     /// 
     /// </summary>
-    [Target("vs2005")]
-    public class VS2005Target : VSGenericTarget
+    [Target("vs2017")]
+    public class VS2017Target : VSGenericTarget
     {
-        #region Inner Classes
+        #region Fields
+
+        string solutionVersion = "12.00";
+        string productVersion = "15.9.50";
+        string schemaVersion = "2.0";
+        string versionName = "Visual Studio 17";
+        string name = "vs2017";
+        VSVersion version = VSVersion.VS17;
 
         #endregion
 
-        #region Fields
+        #region Properties
 
-        string solutionVersion = "9.00";
-        string productVersion = "8.0.50727";
-        string schemaVersion = "2.0";
-        string versionName = "Visual C# 2005";
-        string name = "vs2005";
-
-        VSVersion version = VSVersion.VS80;
-
-        public override string SolutionTag
-        {
-            get { return "# Visual Studio 2005"; }
-        }
-
-        protected override string GetToolsVersionXml(FrameworkVersion frameworkVersion)
-        {
-            return string.Empty;
-        }
         /// <summary>
         /// Gets or sets the solution version.
         /// </summary>
@@ -74,6 +41,7 @@ namespace Prebuild.Core.Targets
                 return solutionVersion;
             }
         }
+
         /// <summary>
         /// Gets or sets the product version.
         /// </summary>
@@ -85,6 +53,7 @@ namespace Prebuild.Core.Targets
                 return productVersion;
             }
         }
+
         /// <summary>
         /// Gets or sets the schema version.
         /// </summary>
@@ -96,6 +65,7 @@ namespace Prebuild.Core.Targets
                 return schemaVersion;
             }
         }
+
         /// <summary>
         /// Gets or sets the name of the version.
         /// </summary>
@@ -107,6 +77,7 @@ namespace Prebuild.Core.Targets
                 return versionName;
             }
         }
+
         /// <summary>
         /// Gets or sets the version.
         /// </summary>
@@ -118,6 +89,7 @@ namespace Prebuild.Core.Targets
                 return version;
             }
         }
+
         /// <summary>
         /// Gets the name.
         /// </summary>
@@ -130,14 +102,46 @@ namespace Prebuild.Core.Targets
             }
         }
 
+        protected override string GetToolsVersionXml(FrameworkVersion frameworkVersion)
+        {
+            switch (frameworkVersion)
+            {
+                case FrameworkVersion.v4_8:
+                case FrameworkVersion.v4_7_2:
+                case FrameworkVersion.v4_7_1:
+                case FrameworkVersion.v4_7:
+                    return "ToolsVersion=\"15.0\"";
+                case FrameworkVersion.v4_6_2:
+                case FrameworkVersion.v4_6_1:
+                case FrameworkVersion.v4_6:
+                    return "ToolsVersion=\"14.0\"";
+                case FrameworkVersion.v4_5_2:
+                    return "ToolsVersion=\"12.0\"";
+                case FrameworkVersion.v4_5_1:
+                case FrameworkVersion.v4_5:
+                case FrameworkVersion.v4_0:
+                case FrameworkVersion.v3_5:
+                    return "ToolsVersion=\"4.0\"";
+                case FrameworkVersion.v3_0:
+                    return "ToolsVersion=\"3.0\"";
+                default:
+                    return "ToolsVersion=\"2.0\"";
+            }
+        }
+
+        public override string SolutionTag
+        {
+            get { return "# Visual Studio 17"; }
+        }
+
         #endregion
 
         #region Constructors
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="VS2005Target"/> class.
+        /// Initializes a new instance of the <see cref="VS2012Target"/> class.
         /// </summary>
-        public VS2005Target()
+        public VS2017Target()
             : base()
         {
         }
