@@ -32,26 +32,3 @@ jobs:
           tag_name: r${{ steps.vars.outputs.sha_short }}
           name: LastAutoBuild
           files: LastBuild.zip
-
-    - name: report push to irc
-      if: github.event_name == 'push'
-      uses: rectalogic/notify-irc@v1
-      with:
-        channel: "#opensim-dev"
-        server: "irc.libera.chat"
-        nickname: osgithub
-        message: |
-          ${{ github.actor }} pushed to ${{ github.repository }}
-          ${{ join(github.event.commits.*.message, '\n') }}
-          mono framework4.8 compile: ${{ steps.build.conclusion }}
-
-    - name: manual report to irc
-      if: github.event_name == 'workflow_dispatch'
-      uses: rectalogic/notify-irc@v1
-      with:
-        channel: "#opensim-dev"
-        server: "irc.libera.chat"
-        nickname: osgithub
-        message: |
-          ${{ github.repository }}
-          mono framework4.8 compile: ${{ steps.build.conclusion }}
