@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<xs:schema elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://dnpb.sourceforge.net/schemas/prebuild-1.10.xsd" xmlns="http://dnpb.sourceforge.net/schemas/prebuild-1.10.xsd">
+<xs:schema elementFormDefault="qualified"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://dnpb.sourceforge.net/schemas/prebuild-1.10.xsd"
+    xmlns="http://dnpb.sourceforge.net/schemas/prebuild-1.10.xsd">
+
 	<xs:annotation>
 		<xs:documentation>
 		Copyright (c) 2004-2007
@@ -112,9 +116,21 @@
 				<xs:element name="ReferencePath" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
 				<xs:element name="Reference" minOccurs="0" maxOccurs="unbounded">
 					<xs:complexType>
-						<xs:attribute name="name" type="xs:string" use="required" />
+                        <xs:attribute name="name" type="xs:string"/>
 						<xs:attribute name="path" type="xs:string" />
 						<xs:attribute name="localCopy" type="xs:boolean" />
+						<xs:attribute name="version" type="xs:string" />
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="ProjectReference" minOccurs="0" maxOccurs="unbounded">
+					<xs:complexType>
+                        <xs:attribute name="name" type="xs:string"/>
+						<xs:attribute name="include" type="xs:string" minOccurs="0" maxOccurs="1"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="PackageReference" minOccurs="0" maxOccurs="unbounded">
+					<xs:complexType>
+                        <xs:attribute name="name" type="xs:string"/>
 						<xs:attribute name="version" type="xs:string" />
 					</xs:complexType>
 				</xs:element>
@@ -170,6 +186,7 @@
 			<xs:attribute name="rootNamespace" type="xs:string" />
 			<xs:attribute name="assemblyName" type="xs:string" />
 			<xs:attribute name="generateAssemblyInfoFile" type="xs:boolean" default="false" />
+			<xs:attribute name="assemblyName" type="xs:string" />
 		</xs:complexType>
 	</xs:element>
 	
@@ -187,8 +204,8 @@
 			<xs:all>
 				<xs:element name="CompilerDefines" type="xs:string" minOccurs="0" />
                 <xs:element name="OptimizeCode" type="xs:boolean" minOccurs="0" />
-				<xs:element name="Prefer32Bit" type="xs:boolean" minOccurs="0" />
-				<xs:element name="CheckUnderflowOverflow" type="xs:boolean" minOccurs="0" />
+                <xs:element name="Prefer32Bit" type="xs:boolean" minOccurs="0" />               
+                <xs:element name="CheckUnderflowOverflow" type="xs:boolean" minOccurs="0" />
 				<xs:element name="AllowUnsafe" type="xs:boolean" minOccurs="0" />
 				<xs:element name="PreBuildEvent" type="xs:string" minOccurs="0" />
 				<xs:element name="PostBuildEvent" type="xs:string" minOccurs="0" />
@@ -214,10 +231,6 @@
 				</xs:element>
 				<xs:element name="WarningsAsErrors" type="xs:boolean" minOccurs="0" />
 				<xs:element name="SuppressWarnings" type="xs:string" minOccurs="0" />
-				<xs:element name="UseCommonOutputDirectory" type="xs:boolean" minOccurs="0" />
-				<xs:element name="AppendTargetFrameworkToOutputPath" type="xs:boolean" minOccurs="0" />
-				<xs:element name="AppendRuntimeIdentifierToOutputPath" type="xs:boolean" minOccurs="0" />
-				<xs:element name="EnableDefaultItems" type="xs:boolean" minOccurs="0" />
 				<xs:element name="OutputPath" type="xs:string" minOccurs="0" />
 				<xs:element name="GenerateDocumentation" type="xs:boolean" minOccurs="0" />
 				<xs:element name="XmlDocFile" type="xs:string" minOccurs="0" />

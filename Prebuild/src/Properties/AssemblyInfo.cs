@@ -48,7 +48,6 @@ using System.Resources;
 
 // FxCop recommended attributes
 [assembly: ComVisible(false)]
-[assembly: FileIOPermission(SecurityAction.RequestMinimum, Unrestricted=true)]
 [assembly: CLSCompliant(true)]
 
 //
@@ -61,17 +60,19 @@ using System.Resources;
 [assembly: AssemblyConfiguration(".NET CLR")]
 [assembly: AssemblyCompany("The Prebuild Project")]
 [assembly: AssemblyProduct("")]
-[assembly: AssemblyCopyright("Copyright 2004-2013 " +
+[assembly: AssemblyCopyright("Copyright 2004-2015 " +
                              "Matthew Holmes, " +
                              "Dan Moorehead, " +
                              "C.J. Adams-Collier, " +
                              "Rob Loach, " +
                              "David Hudson," +
-                             "John Hurliman")]
+                             "John Hurliman" +
+                             "WhiteCore Development" +
+                             "OpenSimulator developers")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 [assembly: NeutralResourcesLanguageAttribute("en-US")]
-[assembly: AssemblyVersion("2.0.6.*")]
+[assembly: AssemblyVersion("2.0.7.*")]
 
 //
 // Version information for an assembly consists of the following four values:
