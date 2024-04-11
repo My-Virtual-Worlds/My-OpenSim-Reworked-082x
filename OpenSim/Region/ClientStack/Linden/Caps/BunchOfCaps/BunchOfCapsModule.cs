@@ -28,12 +28,10 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-
 using log4net;
+using Mono.Addins;
 using Nini.Config;
 using OpenMetaverse;
-using Mono.Addins;
-
 using OpenSim.Framework;
 using OpenSim.Region.Framework;
 using OpenSim.Region.Framework.Interfaces;
@@ -42,22 +40,25 @@ using Caps = OpenSim.Framework.Capabilities.Caps;
 
 [assembly: Addin("LindenCaps", OpenSim.VersionInfo.VersionNumber)]
 [assembly: AddinDependency("OpenSim.Region.Framework", OpenSim.VersionInfo.VersionNumber)]
+
 namespace OpenSim.Region.ClientStack.Linden
 {
-
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "BunchOfCapsModule")]
     public class BunchOfCapsModule : INonSharedRegionModule
     {
-//        private static readonly ILog m_log =
-//            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         private Scene m_Scene;
 
         #region INonSharedRegionModule
 
-        public string Name { get { return "BunchOfCapsModule"; } }
+        public string Name
+        {
+            get { return "BunchOfCapsModule"; }
+        }
 
-        public Type ReplaceableInterface { get { return null; } }
+        public Type ReplaceableInterface
+        {
+            get { return null; }
+        }
 
         public void Initialise(IConfigSource source)
         {
@@ -80,12 +81,12 @@ namespace OpenSim.Region.ClientStack.Linden
         }
 
         public void PostInitialise() { }
+
         #endregion 
 
         private void OnRegisterCaps(UUID agentID, Caps caps)
         {
             new BunchOfCaps(m_Scene, caps);
         }
-
     }
 }
