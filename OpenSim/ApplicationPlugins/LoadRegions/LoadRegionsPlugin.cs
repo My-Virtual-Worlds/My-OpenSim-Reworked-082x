@@ -1,43 +1,36 @@
-/// <license>
-/// Copyright (c) Contributors, http://opensimulator.org/
-/// See CONTRIBUTORS.TXT for a full list of copyright holders.
-///
-/// Redistribution and use in source and binary forms, with or without
-/// modification, are permitted provided that the following conditions are met:
-///     * Redistributions of source code must retain the above copyright
-///       notice, this list of conditions and the following disclaimer.
-///     * Redistributions in binary form must reproduce the above copyright
-///       notice, this list of conditions and the following disclaimer in the
-///       documentation and/or other materials provided with the distribution.
-///     * Neither the name of the OpenSimulator Project nor the
-///       names of its contributors may be used to endorse or promote products
-///       derived from this software without specific prior written permission.
-///
-/// THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
-/// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-/// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-/// DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
-/// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-/// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-/// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-/// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-/// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-/// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-/// </license>
+/*
+ * Copyright (c) Contributors, http://opensimulator.org/
+ * See CONTRIBUTORS.TXT for a full list of copyright holders.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the OpenSimulator Project nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
-/// <summary>
-/// System Library Using 
-/// References First
-/// </summary>
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
-
-/// <summary>
-/// Platform Library Using 
-/// References 
-/// </summary>
+using log4net;
+using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.CoreModules.Agent.AssetTransaction;
 using OpenSim.Region.CoreModules.Avatar.InstantMessage;
@@ -45,14 +38,7 @@ using OpenSim.Region.CoreModules.Scripting.DynamicTexture;
 using OpenSim.Region.CoreModules.Scripting.LoadImageURL;
 using OpenSim.Region.CoreModules.Scripting.XMLRPC;
 using OpenSim.Services.Interfaces;
-
-/// <summary>
-/// Additional Third Party 
-/// Library Using References
-/// </summary>
-using log4net;
 using Mono.Addins;
-using OpenMetaverse;
 
 namespace OpenSim.ApplicationPlugins.LoadRegions
 {
@@ -96,8 +82,9 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
 
         public void PostInitialise()
         {
-            IRegionLoader regionLoader;
+            //m_log.Info("[LOADREGIONS]: Load Regions addin being initialised");
 
+            IRegionLoader regionLoader;
             if (m_openSim.ConfigSource.Source.Configs["Startup"].GetString("region_info_source", "filesystem") == "filesystem")
             {
                 m_log.Info("[LOAD REGIONS PLUGIN]: Loading region configurations from filesystem");
@@ -113,6 +100,14 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
             RegionInfo[] regionsToLoad = regionLoader.LoadRegions();
 
             m_log.Info("[LOAD REGIONS PLUGIN]: Loading specific shared modules...");
+            //m_log.Info("[LOAD REGIONS PLUGIN]: DynamicTextureModule...");
+            //m_openSim.ModuleLoader.LoadDefaultSharedModule(new DynamicTextureModule());
+            //m_log.Info("[LOAD REGIONS PLUGIN]: LoadImageURLModule...");
+            //m_openSim.ModuleLoader.LoadDefaultSharedModule(new LoadImageURLModule());
+            //m_log.Info("[LOAD REGIONS PLUGIN]: XMLRPCModule...");
+            //m_openSim.ModuleLoader.LoadDefaultSharedModule(new XMLRPCModule());
+//            m_log.Info("[LOADREGIONSPLUGIN]: AssetTransactionModule...");
+//            m_openSim.ModuleLoader.LoadDefaultSharedModule(new AssetTransactionModule());
             m_log.Info("[LOAD REGIONS PLUGIN]: Done.");
 
             if (!CheckRegionsForSanity(regionsToLoad))
@@ -126,18 +121,17 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
             for (int i = 0; i < regionsToLoad.Length; i++)
             {
                 IScene scene;
-                m_log.Debug("[LOAD REGIONS PLUGIN]: Creating Region: " + regionsToLoad[i].RegionName +
-                    " (ThreadID: " + Thread.CurrentThread.ManagedThreadId.ToString() + ")");
-
+                m_log.Debug("[LOAD REGIONS PLUGIN]: Creating Region: " + regionsToLoad[i].RegionName + " (ThreadID: " +
+                            Thread.CurrentThread.ManagedThreadId.ToString() +
+                            ")");
+                
                 bool changed = m_openSim.PopulateRegionEstateInfo(regionsToLoad[i]);
 
                 m_openSim.CreateRegion(regionsToLoad[i], true, out scene);
                 createdScenes.Add(scene);
 
                 if (changed)
-                {
                     m_openSim.EstateDataService.StoreEstateSettings(regionsToLoad[i].EstateSettings);
-                }
             }
 
             foreach (IScene scene in createdScenes)
@@ -145,7 +139,6 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
                 scene.Start();
 
                 m_newRegionCreatedHandler = OnNewRegionCreated;
-
                 if (m_newRegionCreatedHandler != null)
                 {
                     m_newRegionCreatedHandler(scene);
@@ -163,21 +156,18 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
         /// Check that region configuration information makes sense.
         /// </summary>
         /// <param name="regions"></param>
-        /// <returns>
-        /// True if we're sane, false if we're insane
-        /// </returns>
+        /// <returns>True if we're sane, false if we're insane</returns>
         private bool CheckRegionsForSanity(RegionInfo[] regions)
         {
             if (regions.Length == 0)
-            {
                 return true;
-            }
 
             foreach (RegionInfo region in regions)
             {
                 if (region.RegionID == UUID.Zero)
                 {
-                    m_log.ErrorFormat("[LOAD REGIONS PLUGIN]: Region {0} has invalid UUID {1}",
+                    m_log.ErrorFormat(
+                        "[LOAD REGIONS PLUGIN]: Region {0} has invalid UUID {1}",
                         region.RegionName, region.RegionID);
                     return false;
                 }

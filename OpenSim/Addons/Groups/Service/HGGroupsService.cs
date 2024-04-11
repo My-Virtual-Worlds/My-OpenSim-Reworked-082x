@@ -1,54 +1,41 @@
-/// <license>
-/// Copyright (c) Contributors, http://opensimulator.org/
-/// See CONTRIBUTORS.TXT for a full list of copyright holders.
-///
-/// Redistribution and use in source and binary forms, with or without
-/// modification, are permitted provided that the following conditions are met:
-///     * Redistributions of source code must retain the above copyright
-///       notice, this list of conditions and the following disclaimer.
-///     * Redistributions in binary form must reproduce the above copyright
-///       notice, this list of conditions and the following disclaimer in the
-///       documentation and/or other materials provided with the distribution.
-///     * Neither the name of the OpenSimulator Project nor the
-///       names of its contributors may be used to endorse or promote products
-///       derived from this software without specific prior written permission.
-///
-/// THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
-/// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-/// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-/// DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
-/// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-/// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-/// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-/// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-/// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-/// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-/// </license>
+/*
+ * Copyright (c) Contributors, http://opensimulator.org/
+ * See CONTRIBUTORS.TXT for a full list of copyright holders.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the OpenSimulator Project nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
-/// <summary>
-/// System Library Using 
-/// References First
-/// </summary>
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Timers;
+using log4net;
+using Nini.Config;
 
-/// <summary>
-/// Platform Library Using 
-/// References 
-/// </summary>
+using OpenMetaverse;
 using OpenSim.Data;
 using OpenSim.Framework;
 using OpenSim.Services.Interfaces;
-
-/// <summary>
-/// Additional Third Party 
-/// Library Using References
-/// </summary>
-using log4net;
-using Nini.Config;
-using OpenMetaverse;
 
 namespace OpenSim.Groups
 {
@@ -66,12 +53,10 @@ namespace OpenSim.Groups
             m_OfflineIM = im;
             m_UserAccounts = users;
             m_HomeURI = homeURI;
-
             if (!m_HomeURI.EndsWith("/"))
-            {
                 m_HomeURI += "/";
-            }
         }
+
 
         #region HG specific operations
 
@@ -79,7 +64,6 @@ namespace OpenSim.Groups
         {
             reason = string.Empty;
             Uri uri = null;
-
             try
             {
                 uri = new Uri(serviceLocation);
@@ -92,8 +76,7 @@ namespace OpenSim.Groups
 
             // Check if it already exists
             GroupData grec = m_Database.RetrieveGroup(groupID);
-
-            if (grec == null ||
+            if (grec == null || 
                 (grec != null && grec.Data["Location"] != string.Empty && grec.Data["Location"].ToLower() != serviceLocation.ToLower()))
             {
                 // Create the group
@@ -112,10 +95,9 @@ namespace OpenSim.Groups
                 grec.Data["MaturePublish"] = "0";
                 grec.Data["OwnerRoleID"] = UUID.Zero.ToString();
 
+
                 if (!m_Database.StoreGroup(grec))
-                {
                     return false;
-                }
             }
 
             if (grec.Data["Location"] == string.Empty)
@@ -153,7 +135,6 @@ namespace OpenSim.Groups
         {
             // check the token
             MembershipData membership = m_Database.RetrieveMember(GroupID, AgentID);
-
             if (membership != null)
             {
                 if (token != string.Empty && token.Equals(membership.Data["AccessToken"]))
@@ -177,25 +158,16 @@ namespace OpenSim.Groups
         {
             // check the token
             if (!VerifyToken(GroupID, RequestingAgentID, token))
-            {
                 return null;
-            }
 
             ExtendedGroupRecord grec;
-
             if (GroupID == UUID.Zero)
-            {
                 grec = GetGroupRecord(RequestingAgentID, groupName);
-            }
             else
-            {
                 grec = GetGroupRecord(RequestingAgentID, GroupID);
-            }
 
             if (grec != null)
-            {
                 FillFounderUUI(grec);
-            }
 
             return grec;
         }
@@ -203,9 +175,7 @@ namespace OpenSim.Groups
         public List<ExtendedGroupMembersData> GetGroupMembers(string RequestingAgentID, UUID GroupID, string token)
         {
             if (!VerifyToken(GroupID, RequestingAgentID, token))
-            {
                 return new List<ExtendedGroupMembersData>();
-            }
 
             List<ExtendedGroupMembersData> members = GetGroupMembers(RequestingAgentID, GroupID);
 
@@ -215,11 +185,8 @@ namespace OpenSim.Groups
                 if (m.AgentID.ToString().Length == 36) // UUID
                 {
                     UserAccount account = m_UserAccounts.GetUserAccount(UUID.Zero, new UUID(m.AgentID));
-
                     if (account != null)
-                    {
                         m.AgentID = Util.UniversalIdentifier(account.PrincipalID, account.FirstName, account.LastName, m_HomeURI);
-                    }
                 }
             });
 
@@ -229,9 +196,7 @@ namespace OpenSim.Groups
         public List<GroupRolesData> GetGroupRoles(string RequestingAgentID, UUID GroupID, string token)
         {
             if (!VerifyToken(GroupID, RequestingAgentID, token))
-            {
                 return new List<GroupRolesData>();
-            }
 
             return GetGroupRoles(RequestingAgentID, GroupID);
         }
@@ -239,9 +204,7 @@ namespace OpenSim.Groups
         public List<ExtendedGroupRoleMembersData> GetGroupRoleMembers(string RequestingAgentID, UUID GroupID, string token)
         {
             if (!VerifyToken(GroupID, RequestingAgentID, token))
-            {
                 return new List<ExtendedGroupRoleMembersData>();
-            }
 
             List<ExtendedGroupRoleMembersData> rolemembers = GetGroupRoleMembers(RequestingAgentID, GroupID);
 
@@ -251,11 +214,8 @@ namespace OpenSim.Groups
                 if (m.MemberID.ToString().Length == 36) // UUID
                 {
                     UserAccount account = m_UserAccounts.GetUserAccount(UUID.Zero, new UUID(m.MemberID));
-
                     if (account != null)
-                    {
                         m.MemberID = Util.UniversalIdentifier(account.PrincipalID, account.FirstName, account.LastName, m_HomeURI);
-                    }
                 }
             });
 
@@ -267,7 +227,6 @@ namespace OpenSim.Groups
         {
             // check that the group proxy exists
             ExtendedGroupRecord grec = GetGroupRecord(RequestingAgentID, groupID);
-
             if (grec == null)
             {
                 m_log.DebugFormat("[Groups.HGGroupsService]: attempt at adding notice to non-existent group proxy");
@@ -288,6 +247,18 @@ namespace OpenSim.Groups
                 return false;
             }
 
+            // This has good intentions (security) but it will potentially DDS the origin...
+            // We'll need to send a proof along with the message. Maybe encrypt the message
+            // using key pairs
+            //
+            //// check that the notice actually exists in the origin
+            //GroupsServiceHGConnector c = new GroupsServiceHGConnector(grec.ServiceLocation);
+            //if (!c.VerifyNotice(noticeID, groupID))
+            //{
+            //    m_log.DebugFormat("[Groups.HGGroupsService]: notice does not exist at origin {0}", grec.ServiceLocation);
+            //    return false;
+            //}
+
             // ok, we're good!
             return _AddNotice(groupID, noticeID, fromName, subject, message, hasAttachment, attType, attName, attItemID, attOwnerID);
         }
@@ -297,14 +268,10 @@ namespace OpenSim.Groups
             GroupNoticeInfo notice = GetGroupNotice(string.Empty, noticeID);
 
             if (notice == null)
-            {
                 return false;
-            }
 
             if (notice.GroupID != groupID)
-            {
                 return false;
-            }
 
             return true;
         }
@@ -324,8 +291,10 @@ namespace OpenSim.Groups
 
                 msg.imSessionID = inviteUUID;
 
+                // msg.fromAgentID = agentID.Guid;
                 msg.fromAgentID = groupID.Guid;
                 msg.toAgentID = invitedAgentID.Guid;
+                //msg.timestamp = (uint)Util.UnixTimeSinceEpoch();
                 msg.timestamp = 0;
                 msg.fromAgentName = fromName;
                 msg.message = string.Format("Please confirm your acceptance to join group {0}.", groupName);
@@ -339,6 +308,7 @@ namespace OpenSim.Groups
 
                 string reason = string.Empty;
                 m_OfflineIM.StoreMessage(msg, out reason);
+
             }
         }
 
@@ -346,19 +316,13 @@ namespace OpenSim.Groups
         {
             // Check whether the invitee is already a member of the group
             MembershipData m = m_Database.RetrieveMember(groupID, agentID);
-
             if (m != null)
-            {
                 return false;
-            }
 
             // Check whether there are pending invitations and delete them
             InvitationData invite = m_Database.RetrieveInvitation(groupID, agentID);
-
             if (invite != null)
-            {
                 m_Database.DeleteInvite(invite.InviteID);
-            }
 
             invite = new InvitationData();
             invite.InviteID = inviteID;
@@ -373,33 +337,23 @@ namespace OpenSim.Groups
         private void FillFounderUUI(ExtendedGroupRecord grec)
         {
             UserAccount account = m_UserAccounts.GetUserAccount(UUID.Zero, grec.FounderID);
-
             if (account != null)
-            {
                 grec.FounderUUI = Util.UniversalIdentifier(account.PrincipalID, account.FirstName, account.LastName, m_HomeURI);
-            }
         }
 
         private bool VerifyToken(UUID groupID, string agentID, string token)
         {
             // check the token
             MembershipData membership = m_Database.RetrieveMember(groupID, agentID);
-
             if (membership != null)
             {
                 if (token != string.Empty && token.Equals(membership.Data["AccessToken"]))
-                {
                     return true;
-                }
                 else
-                {
                     m_log.DebugFormat("[Groups.HGGroupsService]: access token {0} did not match stored one {1}", token, membership.Data["AccessToken"]);
-                }
             }
             else
-            {
                 m_log.DebugFormat("[Groups.HGGroupsService]: membership not found for {0}", agentID);
-            }
 
             return false;
         }
