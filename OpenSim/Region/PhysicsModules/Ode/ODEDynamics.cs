@@ -44,9 +44,9 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using log4net;
 using OpenMetaverse;
-using Ode.NET;
 using OpenSim.Framework;
 using OpenSim.Region.PhysicsModules.SharedBase;
+
 
 namespace OpenSim.Region.PhysicsModule.ODE
 {
@@ -605,6 +605,13 @@ namespace OpenSim.Region.PhysicsModule.ODE
                 return;
 
             m_body = pBody;
+        }
+
+        internal void Stop()
+        {
+            m_lastLinearVelocityVector = Vector3.Zero;
+            m_lastAngularVelocity = Vector3.Zero;
+            m_lastPositionVector = d.BodyGetPosition(Body);
         }
 
         internal void Step(float pTimestep,  OdeScene pParentScene)

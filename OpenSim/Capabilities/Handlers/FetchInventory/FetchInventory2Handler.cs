@@ -64,26 +64,32 @@ namespace OpenSim.Capabilities.Handlers
 
             UUID[] itemIDs = new UUID[itemsRequested.Count];
             int i = 0;
+
             foreach (OSDMap osdItemId in itemsRequested)
             {
                 itemIDs[i++] = osdItemId["item_id"].AsUUID();
             }
 
-            InventoryItemBase[] items = m_inventoryService.GetMultipleItems(m_agentID, itemIDs);
+            InventoryItemBase[] items = null;
 
-            if (items == null)
+            if (m_agentID != UUID.Zero)
             {
-                // OMG!!! One by one!!! This is fallback code, in case the backend isn't updated
-                m_log.WarnFormat("[FETCH INVENTORY HANDLER]: GetMultipleItems failed. Falling back to fetching inventory items one by one.");
-                items = new InventoryItemBase[itemsRequested.Count];
-                i = 0;
-                InventoryItemBase item = new InventoryItemBase();
-                item.Owner = m_agentID;
-                foreach (UUID id in itemIDs)
+                items = m_inventoryService.GetMultipleItems(m_agentID, itemIDs);
+
+                if (items == null)
                 {
-                    item.ID = id;
-                    items[i++] = m_inventoryService.GetItem(item);
+                    // OMG!!! One by one!!! This is fallback code, in case the backend isn't updated
+                    m_log.WarnFormat("[FETCH INVENTORY HANDLER]: GetMultipleItems failed. Falling back to fetching inventory items one by one.");
+                    items = new InventoryItemBase[itemsRequested.Count];                   
+                    foreach (UUID id in itemIDs)
+                        items[i++] = m_inventoryService.GetItem(m_agentID, id);
                 }
+            }
+            else
+            {
+                items = new InventoryItemBase[itemsRequested.Count];
+                foreach (UUID id in itemIDs)
+                    items[i++] = m_inventoryService.GetItem(UUID.Zero, id);
             }
 
             foreach (InventoryItemBase item in items)
@@ -93,7 +99,6 @@ namespace OpenSim.Capabilities.Handlers
                     // We don't know the agent that this request belongs to so we'll use the agent id of the item
                     // which will be the same for all items.
                     llsdReply.agent_id = item.Owner;
-
                     llsdReply.items.Array.Add(ConvertInventoryItem(item));
                 }
             }
@@ -114,7 +119,7 @@ namespace OpenSim.Capabilities.Handlers
             llsdItem.asset_id = invItem.AssetID;
             llsdItem.created_at = invItem.CreationDate;
             llsdItem.desc = invItem.Description;
-            llsdItem.flags = (int)invItem.Flags;
+            llsdItem.flags = ((int)invItem.Flags) & 0xff;
             llsdItem.item_id = invItem.ID;
             llsdItem.name = invItem.Name;
             llsdItem.parent_id = invItem.Folder;

@@ -209,6 +209,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osRegionRestart(seconds);
         }
 
+        public int osRegionRestart(double seconds, string msg)
+        {
+            return m_OSSL_Functions.osRegionRestart(seconds, msg);
+        }
+
         public void osRegionNotice(string msg)
         {
             m_OSSL_Functions.osRegionNotice(msg);
@@ -439,7 +444,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             return m_OSSL_Functions.osParseJSON(JSON);
         }
-        
+
         public Object osParseJSONNew(string JSON)
         {
             return m_OSSL_Functions.osParseJSONNew(JSON);
@@ -744,14 +749,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
                 if (Position.y > ((int)Constants.RegionSize - 1))
                     Position.y = ((int)Constants.RegionSize - 1);
                  */
-                if (Position.z > Constants.RegionHeight)
-                    Position.z = Constants.RegionHeight;
                 if (Position.x < 0)
                     Position.x = 0;
                 if (Position.y < 0)
                     Position.y = 0;
                 if (Position.z < 0)
                     Position.z = 0;
+                if (Position.z > Constants.RegionHeight)
+                    Position.z = Constants.RegionHeight;
                 prim.OSSL.llSetPos(Position);
             }
 
@@ -1053,6 +1058,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public LSL_Integer osRegexIsMatch(string input, string pattern)
         {
             return m_OSSL_Functions.osRegexIsMatch(input, pattern);
+        }
+
+        public LSL_String osRequestURL(LSL_List options)
+        {
+            return m_OSSL_Functions.osRequestURL(options);
+        }
+
+        public LSL_String osRequestSecureURL(LSL_List options)
+        {
+            return m_OSSL_Functions.osRequestSecureURL(options);
         }
     }
 }

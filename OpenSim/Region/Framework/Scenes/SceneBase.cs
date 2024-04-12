@@ -200,7 +200,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// If -1 then updates until shutdown.
         /// </param>
         /// <returns>true if update completed within minimum frame time, false otherwise.</returns>
-        public abstract bool Update(int frames);
+        public abstract void Update(int frames);
 
         #endregion
 

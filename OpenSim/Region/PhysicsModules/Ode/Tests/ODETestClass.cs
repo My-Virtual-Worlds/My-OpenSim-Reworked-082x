@@ -47,6 +47,8 @@ namespace OpenSim.Region.PhysicsModule.ODE.Tests
 
         //private OpenSim.Region.PhysicsModule.ODE.OdePlugin cbt;
         private PhysicsScene pScene;
+        private OpenSim.Region.PhysicsModule.ODE.OdeModule odemodule;
+
 
         [SetUp]
         public void Initialize()
@@ -65,19 +67,18 @@ namespace OpenSim.Region.PhysicsModule.ODE.Tests
             info.RegionSizeX = info.RegionSizeY = info.RegionSizeZ = Constants.RegionSize;
             OpenSim.Region.Framework.Scenes.Scene scene = new OpenSim.Region.Framework.Scenes.Scene(info);
 
-            //IMesher mesher = new OpenSim.Region.PhysicsModules.Meshing.Meshmerizer();
+            //IMesher mesher = new OpenSim.Region.PhysicsModule.Meshing.Meshmerizer();
             //INonSharedRegionModule mod = mesher as INonSharedRegionModule;
             //mod.Initialise(openSimINI);
             //mod.AddRegion(scene);
             //mod.RegionLoaded(scene);
 
-            pScene = new OdeScene();
-            Console.WriteLine("HERE " + (pScene == null ? "Null" : "Not null"));
-            INonSharedRegionModule mod = (pScene as INonSharedRegionModule);
-            Console.WriteLine("HERE " + (mod == null ? "Null" : "Not null"));
-            mod.Initialise(openSimINI);
-            mod.AddRegion(scene);
-            mod.RegionLoaded(scene);
+            //            pScene = new OdeScene();
+            odemodule = new OpenSim.Region.PhysicsModule.ODE.OdeModule();
+            Console.WriteLine("HERE " + (odemodule == null ? "Null" : "Not null"));
+            odemodule.Initialise(openSimINI);
+            odemodule.AddRegion(scene);
+            odemodule.RegionLoaded(scene);
 
             // Loading ODEPlugin
             //cbt = new OdePlugin();
@@ -90,6 +91,7 @@ namespace OpenSim.Region.PhysicsModule.ODE.Tests
             {
                 _heightmap[i] = 21f;
             }
+            pScene = scene.PhysicsScene;
             pScene.SetTerrain(_heightmap);
         }
 

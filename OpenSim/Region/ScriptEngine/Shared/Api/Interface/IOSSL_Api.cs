@@ -135,6 +135,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osTerrainFlush();
 
         int osRegionRestart(double seconds);
+        int osRegionRestart(double seconds, string msg);
         void osRegionNotice(string msg);
         bool osConsoleCommand(string Command);
         void osSetParcelMediaURL(string url);
@@ -144,7 +145,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         // Avatar Info Commands
         string osGetAgentIP(string agent);
         LSL_List osGetAgents();
-
+        
         // Teleport commands
         void osTeleportAgent(string agent, string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
         void osTeleportAgent(string agent, int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
@@ -468,5 +469,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         /// <param name="regex">string to use as pattern</param>
         /// <returns>boolean</returns>
         LSL_Integer osRegexIsMatch(string input, string pattern);
+
+        LSL_String osRequestURL(LSL_List options);
+        LSL_String osRequestSecureURL(LSL_List options);
     }
 }

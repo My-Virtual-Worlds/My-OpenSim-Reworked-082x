@@ -873,6 +873,7 @@ namespace OpenSim.Region.CoreModules.Avatar.UserProfiles
         }
         #endregion Notes
 
+
         #region User Preferences
         /// <summary>
         /// Updates the user preferences.
@@ -1402,5 +1403,182 @@ namespace OpenSim.Region.CoreModules.Avatar.UserProfiles
             return null;
         }
         #endregion Util
+
+        #region Web Util
+        /// <summary>
+        /// Sends json-rpc request with a serializable type.
+        /// </summary>
+        /// <returns>
+        /// OSD Map.
+        /// </returns>
+        /// <param name='parameters'>
+        /// Serializable type .
+        /// </param>
+        /// <param name='method'>
+        /// Json-rpc method to call.
+        /// </param>
+        /// <param name='uri'>
+        /// URI of json-rpc service.
+        /// </param>
+        /// <param name='jsonId'>
+        /// Id for our call.
+        /// </param>
+        bool JsonRpcRequest(ref object parameters, string method, string uri, string jsonId)
+        {
+            if (jsonId == null)
+                throw new ArgumentNullException ("jsonId");
+            if (uri == null)
+                throw new ArgumentNullException ("uri");
+            if (method == null)
+                throw new ArgumentNullException ("method");
+            if (parameters == null)
+                throw new ArgumentNullException ("parameters");
+
+            // Prep our payload
+            OSDMap json = new OSDMap();
+
+            json.Add("jsonrpc", OSD.FromString("2.0"));
+            json.Add("id", OSD.FromString(jsonId));
+            json.Add("method", OSD.FromString(method));
+
+            json.Add("params", OSD.SerializeMembers(parameters));
+
+            string jsonRequestData = OSDParser.SerializeJsonString(json);
+            byte[] content = Encoding.UTF8.GetBytes(jsonRequestData);
+
+            HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(uri);
+
+            webRequest.ContentType = "application/json-rpc";
+            webRequest.Method = "POST";
+
+            Stream dataStream = webRequest.GetRequestStream();
+            dataStream.Write(content, 0, content.Length);
+            dataStream.Close();
+
+            WebResponse webResponse = null;
+            try
+            {
+                webResponse = webRequest.GetResponse();
+            }
+            catch (WebException e)
+            {
+                Console.WriteLine("Web Error" + e.Message);
+                Console.WriteLine ("Please check input");
+                return false;
+            }
+
+            OSDMap mret = new OSDMap();
+
+            using (Stream rstream = webResponse.GetResponseStream())
+            {
+                try
+                {
+                    mret = (OSDMap)OSDParser.DeserializeJson(rstream);
+                }
+                catch (Exception e)
+                {
+                    m_log.DebugFormat("[PROFILES]: JsonRpcRequest Error {0} - remote user with legacy profiles?", e.Message);
+                    if (webResponse != null)
+                        webResponse.Close();
+                    return false;
+                }
+            }
+
+            if (webResponse != null)
+                webResponse.Close();
+
+            if (mret.ContainsKey("error"))
+                return false;
+            
+            // get params...
+            OSD.DeserializeMembers(ref parameters, (OSDMap) mret["result"]);
+            return true;
+        }
+
+        /// <summary>
+        /// Sends json-rpc request with OSD parameter.
+        /// </summary>
+        /// <returns>
+        /// The rpc request.
+        /// </returns>
+        /// <param name='data'>
+        /// data - incoming as parameters, outgong as result/error
+        /// </param>
+        /// <param name='method'>
+        /// Json-rpc method to call.
+        /// </param>
+        /// <param name='uri'>
+        /// URI of json-rpc service.
+        /// </param>
+        /// <param name='jsonId'>
+        /// If set to <c>true</c> json identifier.
+        /// </param>
+        bool JsonRpcRequest(ref OSD data, string method, string uri, string jsonId)
+        {
+            OSDMap map = new OSDMap();
+
+            map["jsonrpc"] = "2.0";
+            if(string.IsNullOrEmpty(jsonId))
+                map["id"] = UUID.Random().ToString();
+            else
+                map["id"] = jsonId;
+
+            map["method"] = method;
+            map["params"] = data;
+
+            string jsonRequestData = OSDParser.SerializeJsonString(map);
+            byte[] content = Encoding.UTF8.GetBytes(jsonRequestData);
+
+            HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(uri);
+            webRequest.ContentType = "application/json-rpc";
+            webRequest.Method = "POST";
+
+            Stream dataStream = webRequest.GetRequestStream();
+            dataStream.Write(content, 0, content.Length);
+            dataStream.Close();
+
+            WebResponse webResponse = null;
+            try
+            {
+                webResponse = webRequest.GetResponse();
+            }
+            catch (WebException e)
+            {
+                Console.WriteLine("Web Error" + e.Message);
+                Console.WriteLine ("Please check input");
+                return false;
+            }
+
+            OSDMap response = new OSDMap();
+
+            using (Stream rstream = webResponse.GetResponseStream())
+            {
+                try
+                {
+                    response = (OSDMap)OSDParser.DeserializeJson(rstream);
+                }
+                catch (Exception e)
+                {
+                    m_log.DebugFormat("[PROFILES]: JsonRpcRequest Error {0} - remote user with legacy profiles?", e.Message);
+                    if (webResponse != null)
+                        webResponse.Close();
+                    return false;
+                }
+            }
+
+            if (webResponse != null)
+                webResponse.Close();
+
+            if(response.ContainsKey("error"))
+            {
+                data = response["error"];
+                return false;
+            }
+
+            data = response;
+
+            return true;
+        }
+        #endregion Web Util
     }
 }

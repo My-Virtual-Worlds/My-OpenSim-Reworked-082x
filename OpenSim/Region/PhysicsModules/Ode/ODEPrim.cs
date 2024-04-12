@@ -48,7 +48,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using log4net;
 using OpenMetaverse;
-using Ode.NET;
 using OpenSim.Framework;
 using OpenSim.Region.PhysicsModules.SharedBase;
 
@@ -83,8 +82,15 @@ namespace OpenSim.Region.PhysicsModule.ODE
             set
             {
                 m_isphysical = value;
-                if (!m_isphysical) // Zero the remembered last velocity
+                if (!m_isphysical)
+                {
+                    _zeroFlag = true; // Zero the remembered last velocity
                     m_lastVelocity = Vector3.Zero;
+                    _acceleration = Vector3.Zero;
+                    _velocity = Vector3.Zero;
+                    m_taintVelocity = Vector3.Zero;
+                    m_rotationalVelocity = Vector3.Zero;
+                }
             }
         }
 
@@ -104,9 +110,11 @@ namespace OpenSim.Region.PhysicsModule.ODE
         private Vector3 m_taintVelocity;
         private Vector3 m_taintTorque;
         private Quaternion m_taintrot;
-        private Vector3 m_angularlock = Vector3.One;
-        private Vector3 m_taintAngularLock = Vector3.One;
+
         private IntPtr Amotor = IntPtr.Zero;
+
+        private byte m_taintAngularLock = 0;
+        private byte m_angularlock = 0;
 
         private bool m_assetFailed = false;
 
@@ -195,7 +203,6 @@ namespace OpenSim.Region.PhysicsModule.ODE
         public int m_interpenetrationcount { get; private set; }
         internal float m_collisionscore;
         public int m_roundsUnderMotionThreshold { get; private set; }
-        private int m_crossingfailures;
 
         public bool outofBounds { get; private set; }
         private float m_density = 10.000006836f; // Aluminum g/cm3;
@@ -350,12 +357,12 @@ namespace OpenSim.Region.PhysicsModule.ODE
             if (m_assetFailed)
             {
                 d.GeomSetCategoryBits(prim_geom, 0);
-                d.GeomSetCollideBits(prim_geom, BadMeshAssetCollideBits);
+                d.GeomSetCollideBits(prim_geom, (uint)BadMeshAssetCollideBits);
             }
             else
             {
-                d.GeomSetCategoryBits(prim_geom, (int)m_collisionCategories);
-                d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                d.GeomSetCategoryBits(prim_geom, (uint)m_collisionCategories);
+                d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
             }
 
             _parent_scene.geom_name_map[prim_geom] = Name;
@@ -423,7 +430,7 @@ namespace OpenSim.Region.PhysicsModule.ODE
                 if (m_assetFailed)
                 {
                     d.GeomSetCategoryBits(prim_geom, 0);
-                    d.GeomSetCollideBits(prim_geom, BadMeshAssetCollideBits);
+                    d.GeomSetCollideBits(prim_geom, (uint)BadMeshAssetCollideBits);
                 }
                 else
                 {
@@ -431,8 +438,8 @@ namespace OpenSim.Region.PhysicsModule.ODE
                     m_collisionFlags |= (CollisionCategories.Land | CollisionCategories.Wind);
                 }
 
-                d.GeomSetCategoryBits(prim_geom, (int)m_collisionCategories);
-                d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                d.GeomSetCategoryBits(prim_geom, (uint)m_collisionCategories);
+                d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
 
                 d.BodySetAutoDisableFlag(Body, true);
                 d.BodySetAutoDisableSteps(Body, body_autodisable_frames);
@@ -445,7 +452,7 @@ namespace OpenSim.Region.PhysicsModule.ODE
                 m_disabled = false;
 
                 // The body doesn't already have a finite rotation mode set here
-                if ((!m_angularlock.ApproxEquals(Vector3.One, 0.0f)) && _parent == null)
+                if (m_angularlock != 0 && _parent == null)
                 {
                     createAMotor(m_angularlock);
                 }
@@ -816,8 +823,8 @@ namespace OpenSim.Region.PhysicsModule.ODE
                         }
                         else
                         {
-                            d.GeomSetCategoryBits(prim_geom, (int)m_collisionCategories);
-                            d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                            d.GeomSetCategoryBits(prim_geom, (uint)m_collisionCategories);
+                            d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
                         }
 
                         d.BodyDestroy(Body);
@@ -850,8 +857,8 @@ namespace OpenSim.Region.PhysicsModule.ODE
                     else
                     {
 
-                        d.GeomSetCategoryBits(prim_geom, (int)m_collisionCategories);
-                        d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                        d.GeomSetCategoryBits(prim_geom, (uint)m_collisionCategories);
+                        d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
                     }
 
                     Body = IntPtr.Zero;
@@ -919,7 +926,7 @@ namespace OpenSim.Region.PhysicsModule.ODE
 //            _parent_scene.waitForSpaceUnlock(m_targetSpace);
             try
             {
-                SetGeom(d.CreateTriMesh(m_targetSpace, _triMeshData, parent_scene.triCallback, null, null));
+                SetGeom(d.CreateTriMesh(m_targetSpace, _triMeshData, null, null, null));
             }
             catch (AccessViolationException)
             {
@@ -1001,7 +1008,7 @@ Console.WriteLine("ZProcessTaints for " + Name);
             if (m_taintCollidesWater != m_collidesWater)
                 changefloatonwater();
 
-            if (!m_angularlock.ApproxEquals(m_taintAngularLock,0f))
+            if (m_taintAngularLock != m_angularlock)
                 changeAngularLock();
         }
 
@@ -1017,10 +1024,8 @@ Console.WriteLine("ZProcessTaints for " + Name);
                 //If we have a parent then we're not authorative here
                 if (_parent == null)
                 {
-                    if (!m_taintAngularLock.ApproxEquals(Vector3.One, 0f))
+                    if (m_taintAngularLock != 0)
                     {
-                        //d.BodySetFiniteRotationMode(Body, 0);
-                        //d.BodySetFiniteRotationAxis(Body,m_taintAngularLock.X,m_taintAngularLock.Y,m_taintAngularLock.Z);
                         createAMotor(m_taintAngularLock);
                     }
                     else
@@ -1034,7 +1039,6 @@ Console.WriteLine("ZProcessTaints for " + Name);
                 }
             }
 
-            // Store this for later in case we get turned into a separate body
             m_angularlock = m_taintAngularLock;
         }
 
@@ -1145,12 +1149,12 @@ Console.WriteLine("ZProcessTaints for " + Name);
                     if (prm.m_assetFailed)
                     {
                         d.GeomSetCategoryBits(prm.prim_geom, 0);
-                        d.GeomSetCollideBits(prm.prim_geom, prm.BadMeshAssetCollideBits);
+                        d.GeomSetCollideBits(prm.prim_geom, (uint)prm.BadMeshAssetCollideBits);
                     }
                     else
                     {
-                        d.GeomSetCategoryBits(prm.prim_geom, (int)prm.m_collisionCategories);
-                        d.GeomSetCollideBits(prm.prim_geom, (int)prm.m_collisionFlags);
+                        d.GeomSetCategoryBits(prm.prim_geom, (uint)prm.m_collisionCategories);
+                        d.GeomSetCollideBits(prm.prim_geom, (uint)prm.m_collisionFlags);
                     }
 
                     d.Quaternion quat = new d.Quaternion();
@@ -1194,14 +1198,14 @@ Console.WriteLine("ZProcessTaints for " + Name);
                 if (m_assetFailed)
                 {
                     d.GeomSetCategoryBits(prim_geom, 0);
-                    d.GeomSetCollideBits(prim_geom, BadMeshAssetCollideBits);
+                    d.GeomSetCollideBits(prim_geom, (uint)BadMeshAssetCollideBits);
                 }
                 else
                 {
                     //Console.WriteLine("GeomSetCategoryBits 2: " + prim_geom + " - " + (int)m_collisionCategories + " for " + Name);
-                    d.GeomSetCategoryBits(prim_geom, (int)m_collisionCategories);
+                    d.GeomSetCategoryBits(prim_geom, (uint)m_collisionCategories);
                     //Console.WriteLine(" Post GeomSetCategoryBits 2");
-                    d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                    d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
                 }
 
                 d.Quaternion quat2 = new d.Quaternion();
@@ -1230,7 +1234,8 @@ Console.WriteLine("ZProcessTaints for " + Name);
                 m_disabled = false;
 
                 // The body doesn't already have a finite rotation mode set here
-                if ((!m_angularlock.ApproxEquals(Vector3.One, 0f)) && _parent == null)
+                // or remove
+                if (_parent == null)
                 {
                     createAMotor(m_angularlock);
                 }
@@ -1370,8 +1375,8 @@ Console.WriteLine("ZProcessTaints for " + Name);
                 }
                 else
                 {
-                    d.GeomSetCategoryBits(prim_geom, (int)m_collisionCategories);
-                    d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                    d.GeomSetCategoryBits(prim_geom, (uint)m_collisionCategories);
+                    d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
                 }
 
                 if (IsPhysical)
@@ -1396,12 +1401,12 @@ Console.WriteLine("ZProcessTaints for " + Name);
                 if (m_assetFailed)
                 {
                     d.GeomSetCategoryBits(prim_geom, 0);
-                    d.GeomSetCollideBits(prim_geom, BadMeshAssetCollideBits);
+                    d.GeomSetCollideBits(prim_geom, (uint)BadMeshAssetCollideBits);
                 }
                 else
                 {
-                    d.GeomSetCategoryBits(prim_geom, (int)m_collisionCategories);
-                    d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                    d.GeomSetCategoryBits(prim_geom, (uint)m_collisionCategories);
+                    d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
                 }
 
                 if (IsPhysical)
@@ -1686,6 +1691,9 @@ Console.WriteLine(" JointCreateFixed");
             float fy = 0;
             float fz = 0;
 
+            if (outofBounds)
+                return;
+
             if (IsPhysical && (Body != IntPtr.Zero) && !m_isSelected && !childPrim)        // KF: Only move root prims.
             {
                 if (m_vehicle.Type != Vehicle.TYPE_NONE)
@@ -1697,21 +1705,6 @@ Console.WriteLine(" JointCreateFixed");
                 {
 //Console.WriteLine("Move " +  Name);
                     if (!d.BodyIsEnabled (Body))  d.BodyEnable (Body); // KF add 161009
-                    // NON-'VEHICLES' are dealt with here
-//                    if (d.BodyIsEnabled(Body) && !m_angularlock.ApproxEquals(Vector3.Zero, 0.003f))
-//                    {
-//                        d.Vector3 avel2 = d.BodyGetAngularVel(Body);
-//                        /*
-//                        if (m_angularlock.X == 1)
-//                            avel2.X = 0;
-//                        if (m_angularlock.Y == 1)
-//                            avel2.Y = 0;
-//                        if (m_angularlock.Z == 1)
-//                            avel2.Z = 0;
-//                        d.BodySetAngularVel(Body, avel2.X, avel2.Y, avel2.Z);
-//                         */
-//                    }
-                    //float PID_P = 900.0f;
 
                     float m_mass = CalculateMass();
 
@@ -1940,8 +1933,8 @@ Console.WriteLine(" JointCreateFixed");
                 d.BodySetQuaternion(Body, ref myrot);
                 if (IsPhysical)
                 {
-                    if (!m_angularlock.ApproxEquals(Vector3.One, 0f))
-                        createAMotor(m_angularlock);
+                    // create or remove locks
+                    createAMotor(m_angularlock);
                 }
             }
             else
@@ -2140,10 +2133,10 @@ Console.WriteLine(" JointCreateFixed");
             }
 
             if (m_assetFailed)
-                d.GeomSetCollideBits(prim_geom, BadMeshAssetCollideBits);
+                d.GeomSetCollideBits(prim_geom, (uint)BadMeshAssetCollideBits);
             else
 
-                d.GeomSetCollideBits(prim_geom, (int)m_collisionFlags);
+                d.GeomSetCollideBits(prim_geom, (uint)m_collisionFlags);
         }
         /// <summary>
         /// Change prim in response to a shape taint.
@@ -2659,16 +2652,46 @@ Console.WriteLine(" JointCreateFixed");
 
         public override void CrossingFailure()
         {
-            m_crossingfailures++;
-            if (m_crossingfailures > _parent_scene.geomCrossingFailuresBeforeOutofbounds)
+            /*
+                        m_crossingfailures++;
+                        if (m_crossingfailures > _parent_scene.geomCrossingFailuresBeforeOutofbounds)
+                        {
+                            base.RaiseOutOfBounds(_position);
+                            return;
+                        }
+                        else if (m_crossingfailures == _parent_scene.geomCrossingFailuresBeforeOutofbounds)
+                        {
+                            m_log.Warn("[PHYSICS]: Too many crossing failures for: " + Name);
+                        }
+            */
+
+            d.AllocateODEDataForThread(0U);
+
+            _position.X = Util.Clip(_position.X, 0.5f, _parent_scene.WorldExtents.X - 0.5f);
+            _position.Y = Util.Clip(_position.Y, 0.5f, _parent_scene.WorldExtents.Y - 0.5f);
+            _position.Z = Util.Clip(_position.Z + 0.2f, -100f, 50000f);
+
+            m_lastposition = _position;
+            _velocity.X = 0;
+            _velocity.Y = 0;
+            _velocity.Z = 0;
+
+            m_lastVelocity = _velocity;
+
+            if (Body != IntPtr.Zero)
             {
-                base.RaiseOutOfBounds(_position);
-                return;
+                d.BodySetLinearVel(Body, 0, 0, 0); // stop it
+                d.BodySetPosition(Body, _position.X, _position.Y, _position.Z);
             }
-            else if (m_crossingfailures == _parent_scene.geomCrossingFailuresBeforeOutofbounds)
-            {
-                m_log.Warn("[PHYSICS]: Too many crossing failures for: " + Name);
-            }
+
+            if(m_vehicle != null && m_vehicle.Type != Vehicle.TYPE_NONE)
+                m_vehicle.Stop(); // this also updates vehicle last position from the body position
+            
+            enableBodySoft();
+
+            outofBounds = false;
+            base.RequestPhysicsterseUpdate();
+
         }
 
         public override float Buoyancy
@@ -2687,32 +2710,23 @@ Console.WriteLine(" JointCreateFixed");
             m_taintparent = null;
         }
 
-        public override void LockAngularMotion(Vector3 axis)
+        public override void LockAngularMotion(byte axislocks)
         {
-            // reverse the zero/non zero values for ODE.
-            if (axis.IsFinite())
-            {
-                axis.X = (axis.X > 0) ? 1f : 0f;
-                axis.Y = (axis.Y > 0) ? 1f : 0f;
-                axis.Z = (axis.Z > 0) ? 1f : 0f;
-                m_log.DebugFormat("[axislock]: <{0},{1},{2}>", axis.X, axis.Y, axis.Z);
-                m_taintAngularLock = axis;
-            }
-            else
-            {
-                m_log.WarnFormat("[PHYSICS]: Got NaN locking axis from Scene on Object {0}", Name);
-            }
+            // m_log.DebugFormat("[axislocks]: {0}", axislocks);
+            m_taintAngularLock = axislocks;
         }
 
         internal void UpdatePositionAndVelocity()
         {
             //  no lock; called from Simulate() -- if you call this from elsewhere, gotta lock or do Monitor.Enter/Exit!
+            if (outofBounds)
+                return;
             if (_parent == null)
             {
                 Vector3 pv = Vector3.Zero;
                 bool lastZeroFlag = _zeroFlag;
                 float m_minvelocity = 0;
-                if (Body != (IntPtr)0) // FIXME -> or if it is a joint
+                if (Body != IntPtr.Zero) // FIXME -> or if it is a joint
                 {
                     d.Vector3 vec = d.BodyGetPosition(Body);
                     d.Quaternion ori = d.BodyGetQuaternion(Body);
@@ -2722,12 +2736,6 @@ Console.WriteLine(" JointCreateFixed");
                     _torque = new Vector3(torque.X, torque.Y, torque.Z);
                     Vector3 l_position = Vector3.Zero;
                     Quaternion l_orientation = Quaternion.Identity;
-
-                    //  kluge to keep things in bounds.  ODE lets dead avatars drift away (they should be removed!)
-                    //if (vec.X < 0.0f) { vec.X = 0.0f; if (Body != (IntPtr)0) d.BodySetAngularVel(Body, 0, 0, 0); }
-                    //if (vec.Y < 0.0f) { vec.Y = 0.0f; if (Body != (IntPtr)0) d.BodySetAngularVel(Body, 0, 0, 0); }
-                    //if (vec.X > 255.95f) { vec.X = 255.95f; if (Body != (IntPtr)0) d.BodySetAngularVel(Body, 0, 0, 0); }
-                    //if (vec.Y > 255.95f) { vec.Y = 255.95f; if (Body != (IntPtr)0) d.BodySetAngularVel(Body, 0, 0, 0); }
 
                     m_lastposition = _position;
                     m_lastorientation = _orientation;
@@ -2740,26 +2748,6 @@ Console.WriteLine(" JointCreateFixed");
                     l_orientation.Z = ori.Z;
                     l_orientation.W = ori.W;
 
-                    if (l_position.X > ((int)_parent_scene.WorldExtents.X - 0.05f) || l_position.X < 0f || l_position.Y > ((int)_parent_scene.WorldExtents.Y - 0.05f) || l_position.Y < 0f)
-                    {
-                        //base.RaiseOutOfBounds(l_position);
-
-                        if (m_crossingfailures < _parent_scene.geomCrossingFailuresBeforeOutofbounds)
-                        {
-                            _position = l_position;
-                            //_parent_scene.remActivePrim(this);
-                            if (_parent == null)
-                                base.RequestPhysicsterseUpdate();
-                            return;
-                        }
-                        else
-                        {
-                            if (_parent == null)
-                                base.RaiseOutOfBounds(l_position);
-                            return;
-                        }
-                    }
-
                     if (l_position.Z < 0)
                     {
                         // This is so prim that get lost underground don't fall forever and suck up
@@ -2769,8 +2757,6 @@ Console.WriteLine(" JointCreateFixed");
                         // It's a hack and will generate a console message if it fails.
 
                         //IsPhysical = false;
-                        if (_parent == null)
-                            base.RaiseOutOfBounds(_position);
 
                         _acceleration.X = 0;
                         _acceleration.Y = 0;
@@ -2784,16 +2770,65 @@ Console.WriteLine(" JointCreateFixed");
                         m_rotationalVelocity.Z = 0;
 
                         if (_parent == null)
+                            base.RaiseOutOfBounds(_position);
+
+                        if (_parent == null)
                             base.RequestPhysicsterseUpdate();
 
                         m_throttleUpdates = false;
                         throttleCounter = 0;
                         _zeroFlag = true;
                         //outofBounds = true;
+                        return;
                     }
 
+                    if (l_position.X > ((int)_parent_scene.WorldExtents.X - 0.05f) || l_position.X < 0f || l_position.Y > ((int)_parent_scene.WorldExtents.Y - 0.05f) || l_position.Y < 0f)
+                    {
+                        //base.RaiseOutOfBounds(l_position);
+                        /*
+                                                if (m_crossingfailures < _parent_scene.geomCrossingFailuresBeforeOutofbounds)
+                                                {
+                                                    _position = l_position;
+                                                    //_parent_scene.remActivePrim(this);
+                                                    if (_parent == null)
+                                                        base.RequestPhysicsterseUpdate();
+                                                    return;
+                                                }
+                                                else
+                                                {
+                                                    if (_parent == null)
+                                                        base.RaiseOutOfBounds(l_position);
+                                                    return;
+                                                }
+                        */
+                        outofBounds = true;
+                        // part near the border on outside
+                        if (l_position.X < 0)
+                            Util.Clamp(l_position.X, -0.1f, -2f);
+                        else
+                            Util.Clamp(l_position.X, _parent_scene.WorldExtents.X + 0.1f, _parent_scene.WorldExtents.X + 2f);
+                        if (l_position.Y < 0)
+                            Util.Clamp(l_position.Y, -0.1f, -2f);
+                        else
+                            Util.Clamp(l_position.Y, _parent_scene.WorldExtents.Y + 0.1f, _parent_scene.WorldExtents.Y + 2f);
+
+                        d.BodySetPosition(Body, l_position.X, l_position.Y, l_position.Z);
+
+                        // stop it
+                        d.BodySetAngularVel(Body, 0, 0, 0);
+                        d.BodySetLinearVel(Body, 0, 0, 0);
+                        disableBodySoft();
+
+                        _position = l_position;
+                        // tell framework to fix it
+                        if (_parent == null)
+                            base.RequestPhysicsterseUpdate();
+                        return;
+                    }
+
+
                     //float Adiff = 1.0f - Math.Abs(Quaternion.Dot(m_lastorientation, l_orientation));
-//Console.WriteLine("Adiff " + Name + " = " + Adiff);
+                    //Console.WriteLine("Adiff " + Name + " = " + Adiff);
                     if ((Math.Abs(m_lastposition.X - l_position.X) < 0.02)
                         && (Math.Abs(m_lastposition.Y - l_position.Y) < 0.02)
                         && (Math.Abs(m_lastposition.Z - l_position.Z) < 0.02)
@@ -2950,11 +2985,12 @@ Console.WriteLine(" JointCreateFixed");
                     m_log.WarnFormat("[PHYSICS]: Got NaN PIDTarget from Scene on Object {0}", Name);
             } 
         }
+
         public override bool PIDActive { get; set; }
         public override float PIDTau { set { m_PIDTau = value; } }
 
         public override float PIDHoverHeight { set { m_PIDHoverHeight = value; ; } }
-        public override bool PIDHoverActive { set { m_useHoverPID = value; } }
+        public override bool PIDHoverActive { get { return m_useHoverPID;} set { m_useHoverPID = value; } }
         public override PIDHoverType PIDHoverType { set { m_PIDHoverType = value; } }
         public override float PIDHoverTau { set { m_PIDHoverTau = value; } }
         
@@ -2966,7 +3002,7 @@ Console.WriteLine(" JointCreateFixed");
 
         public override float APIDDamping{ set { return; } }
 
-        private void createAMotor(Vector3 axis)
+        private void createAMotor(byte axislock)
         {
             if (Body == IntPtr.Zero)
                 return;
@@ -2977,150 +3013,105 @@ Console.WriteLine(" JointCreateFixed");
                 Amotor = IntPtr.Zero;
             }
 
-            float axisnum = 3;
-
-            axisnum = (axisnum - (axis.X + axis.Y + axis.Z));
-
-            // PhysicsVector totalSize = new PhysicsVector(_size.X, _size.Y, _size.Z);
-
-            
-            // Inverse Inertia Matrix, set the X, Y, and/r Z inertia to 0 then invert it again.
-            d.Mass objMass;
-            d.MassSetZero(out objMass);
-            DMassCopy(ref pMass, ref objMass);
-
-            //m_log.DebugFormat("1-{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, ", objMass.I.M00, objMass.I.M01, objMass.I.M02, objMass.I.M10, objMass.I.M11, objMass.I.M12, objMass.I.M20, objMass.I.M21, objMass.I.M22);
-
-            Matrix4 dMassMat = FromDMass(objMass);
-
-            Matrix4 mathmat = Inverse(dMassMat);
-
-            /*
-            //m_log.DebugFormat("2-{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, ", mathmat[0, 0], mathmat[0, 1], mathmat[0, 2], mathmat[1, 0], mathmat[1, 1], mathmat[1, 2], mathmat[2, 0], mathmat[2, 1], mathmat[2, 2]);
-
-            mathmat = Inverse(mathmat);
-
-
-            objMass = FromMatrix4(mathmat, ref objMass);
-            //m_log.DebugFormat("3-{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, ", objMass.I.M00, objMass.I.M01, objMass.I.M02, objMass.I.M10, objMass.I.M11, objMass.I.M12, objMass.I.M20, objMass.I.M21, objMass.I.M22);
-
-            mathmat = Inverse(mathmat);
-            */
-            if (axis.X == 0)
-            {
-                mathmat.M33 = 50.0000001f;
-                //objMass.I.M22 = 0;
-            }
-            if (axis.Y == 0)
-            {
-                mathmat.M22 = 50.0000001f;
-                //objMass.I.M11 = 0;
-            }
-            if (axis.Z == 0)
-            {
-                mathmat.M11 = 50.0000001f;
-                //objMass.I.M00 = 0;
-            }
-            
-            
-
-            mathmat = Inverse(mathmat);
-            objMass = FromMatrix4(mathmat, ref objMass);
-            //m_log.DebugFormat("4-{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, ", objMass.I.M00, objMass.I.M01, objMass.I.M02, objMass.I.M10, objMass.I.M11, objMass.I.M12, objMass.I.M20, objMass.I.M21, objMass.I.M22);
-           
-            //return;
-            if (d.MassCheck(ref objMass))
-            {
-                d.BodySetMass(Body, ref objMass);
-            }
-            else
-            {
-                //m_log.Debug("[PHYSICS]: Mass invalid, ignoring");
-            }
-
-            if (axisnum <= 0)
+            if(axislock == 0)
                 return;
-            // int dAMotorEuler = 1;
+
+            int axisnum = 0;
+            bool axisX = false;
+            bool axisY = false;
+            bool axisZ = false;
+            if((axislock & 0x02) != 0)
+                {
+                axisnum++;
+                axisX = true;
+                }
+            if((axislock & 0x04) != 0)
+                {
+                axisnum++;
+                axisY = true;
+                }
+            if((axislock & 0x08) != 0)
+                {
+                axisnum++;
+                axisZ = true;
+                }
+
+            if(axisnum == 0)
+                return;
+            // stop it
+            d.BodySetTorque(Body, 0, 0, 0);
+            d.BodySetAngularVel(Body, 0, 0, 0);
 
             Amotor = d.JointCreateAMotor(_parent_scene.world, IntPtr.Zero);
             d.JointAttach(Amotor, Body, IntPtr.Zero);
+
             d.JointSetAMotorMode(Amotor, 0);
 
-            d.JointSetAMotorNumAxes(Amotor,(int)axisnum);
+            d.JointSetAMotorNumAxes(Amotor, axisnum);
+
+            // get current orientation to lock
+
+            d.Quaternion dcur = d.BodyGetQuaternion(Body);
+            Quaternion curr; // crap convertion between identical things
+            curr.X = dcur.X;
+            curr.Y = dcur.Y;
+            curr.Z = dcur.Z;
+            curr.W = dcur.W;
+            Vector3 ax;
+
             int i = 0;
-
-            if (axis.X == 0)
+            int j = 0;
+            if (axisX)
             {
-                d.JointSetAMotorAxis(Amotor, i, 0, 1, 0, 0);
+                ax = (new Vector3(1, 0, 0)) * curr; // rotate world X to current local X
+                d.JointSetAMotorAxis(Amotor, 0, 0, ax.X, ax.Y, ax.Z);
+                d.JointSetAMotorAngle(Amotor, 0, 0);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.LoStop, 0f);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.HiStop, 0f);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.Vel, 0);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.FudgeFactor, 0.0001f);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.Bounce, 0f);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.CFM, 0f);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.FMax, 5e8f);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.StopCFM, 0f);
+                d.JointSetAMotorParam(Amotor, (int)d.JointParam.StopERP, 0.8f);
                 i++;
+                j = 256; // move to next axis set
             }
 
-            if (axis.Y == 0)
+            if (axisY)
             {
-                d.JointSetAMotorAxis(Amotor, i, 0, 0, 1, 0);
+                ax = (new Vector3(0, 1, 0)) * curr;
+                d.JointSetAMotorAxis(Amotor, i, 0, ax.X, ax.Y, ax.Z);
+                d.JointSetAMotorAngle(Amotor, i, 0);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.LoStop, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.HiStop, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.Vel, 0);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.FudgeFactor, 0.0001f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.Bounce, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.CFM, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.FMax, 5e8f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.StopCFM, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.StopERP, 0.8f);
                 i++;
+                j += 256;
             }
 
-            if (axis.Z == 0)
+            if (axisZ)
             {
-                d.JointSetAMotorAxis(Amotor, i, 0, 0, 0, 1);
-                i++;
+                ax = (new Vector3(0, 0, 1)) * curr;
+                d.JointSetAMotorAxis(Amotor, i, 0, ax.X, ax.Y, ax.Z);
+                d.JointSetAMotorAngle(Amotor, i, 0);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.LoStop, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.HiStop, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.Vel, 0);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.FudgeFactor, 0.0001f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.Bounce, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.CFM, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.FMax, 5e8f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.StopCFM, 0f);
+                d.JointSetAMotorParam(Amotor, j + (int)d.JointParam.StopERP, 0.8f);
             }
-
-            for (int j = 0; j < (int)axisnum; j++)
-            {
-                //d.JointSetAMotorAngle(Amotor, j, 0);
-            }
-
-            //d.JointSetAMotorAngle(Amotor, 1, 0);
-            //d.JointSetAMotorAngle(Amotor, 2, 0);
-
-            // These lowstops and high stops are effectively (no wiggle room)
-            d.JointSetAMotorParam(Amotor, (int)dParam.LowStop, -0f);
-            d.JointSetAMotorParam(Amotor, (int)dParam.LoStop3, -0f);
-            d.JointSetAMotorParam(Amotor, (int)dParam.LoStop2, -0f);
-            d.JointSetAMotorParam(Amotor, (int)dParam.HiStop, 0f);
-            d.JointSetAMotorParam(Amotor, (int)dParam.HiStop3, 0f);
-            d.JointSetAMotorParam(Amotor, (int)dParam.HiStop2, 0f);
-            //d.JointSetAMotorParam(Amotor, (int) dParam.Vel, 9000f);
-            d.JointSetAMotorParam(Amotor, (int)dParam.FudgeFactor, 0f);
-            d.JointSetAMotorParam(Amotor, (int)dParam.FMax, Mass * 50f);//
-        }
-
-        private Matrix4 FromDMass(d.Mass pMass)
-        {
-            Matrix4 obj;
-            obj.M11 = pMass.I.M00;
-            obj.M12 = pMass.I.M01;
-            obj.M13 = pMass.I.M02;
-            obj.M14 = 0;
-            obj.M21 = pMass.I.M10;
-            obj.M22 = pMass.I.M11;
-            obj.M23 = pMass.I.M12;
-            obj.M24 = 0;
-            obj.M31 = pMass.I.M20;
-            obj.M32 = pMass.I.M21;
-            obj.M33 = pMass.I.M22;
-            obj.M34 = 0;
-            obj.M41 = 0;
-            obj.M42 = 0;
-            obj.M43 = 0;
-            obj.M44 = 1;
-            return obj;
-        }
-
-        private d.Mass FromMatrix4(Matrix4 pMat, ref d.Mass obj)
-        {
-            obj.I.M00 = pMat[0, 0];
-            obj.I.M01 = pMat[0, 1];
-            obj.I.M02 = pMat[0, 2];
-            obj.I.M10 = pMat[1, 0];
-            obj.I.M11 = pMat[1, 1];
-            obj.I.M12 = pMat[1, 2];
-            obj.I.M20 = pMat[2, 0];
-            obj.I.M21 = pMat[2, 1];
-            obj.I.M22 = pMat[2, 2];
-            return obj;
         }
 
         public override void SubscribeEvents(int ms)
@@ -3135,7 +3126,7 @@ Console.WriteLine(" JointCreateFixed");
             m_eventsubscription = 0;
         }
 
-        public void AddCollisionEvent(uint CollidedWith, ContactPoint contact)
+        public override void AddCollisionEvent(uint CollidedWith, ContactPoint contact)
         {
             CollisionEventsThisFrame.AddCollider(CollidedWith, contact);
         }
@@ -3163,173 +3154,6 @@ Console.WriteLine(" JointCreateFixed");
             if (m_eventsubscription > 0)
                 return true;
             return false;
-        }
-
-        public static Matrix4 Inverse(Matrix4 pMat)
-        {
-            if (determinant3x3(pMat) == 0)
-            {
-                return Matrix4.Identity; // should probably throw an error.  singluar matrix inverse not possible
-            }
-
-            return (Adjoint(pMat) / determinant3x3(pMat));
-        }
-
-        public static Matrix4 Adjoint(Matrix4 pMat)
-        {
-            Matrix4 adjointMatrix = new Matrix4();
-            for (int i=0; i<4; i++)
-            {
-                for (int j=0; j<4; j++)
-                {
-                    Matrix4SetValue(ref adjointMatrix, i, j, (float)(Math.Pow(-1, i + j) * (determinant3x3(Minor(pMat, i, j)))));
-                }
-            }
-
-            adjointMatrix = Transpose(adjointMatrix);
-            return adjointMatrix;
-        }
-
-        public static Matrix4 Minor(Matrix4 matrix, int iRow, int iCol)
-        {
-            Matrix4 minor = new Matrix4();
-            int m = 0, n = 0;
-            for (int i = 0; i < 4; i++)
-            {
-                if (i == iRow)
-                    continue;
-                n = 0;
-                for (int j = 0; j < 4; j++)
-                {
-                    if (j == iCol)
-                        continue;
-                    Matrix4SetValue(ref minor, m,n, matrix[i, j]);
-                    n++;
-                }
-                m++;
-            }
-
-            return minor;
-        }
-
-        public static Matrix4 Transpose(Matrix4 pMat)
-        {
-            Matrix4 transposeMatrix = new Matrix4();
-            for (int i = 0; i < 4; i++)
-                for (int j = 0; j < 4; j++)
-                    Matrix4SetValue(ref transposeMatrix, i, j, pMat[j, i]);
-            return transposeMatrix;
-        }
-
-        public static void Matrix4SetValue(ref Matrix4 pMat, int r, int c, float val)
-        {
-            switch (r)
-            {
-                case 0:
-                    switch (c)
-                    {
-                        case 0:
-                            pMat.M11 = val;
-                            break;
-                        case 1:
-                            pMat.M12 = val;
-                            break;
-                        case 2:
-                            pMat.M13 = val;
-                            break;
-                        case 3:
-                            pMat.M14 = val;
-                            break;
-                    }
-
-                    break;
-                case 1:
-                    switch (c)
-                    {
-                        case 0:
-                            pMat.M21 = val;
-                            break;
-                        case 1:
-                            pMat.M22 = val;
-                            break;
-                        case 2:
-                            pMat.M23 = val;
-                            break;
-                        case 3:
-                            pMat.M24 = val;
-                            break;
-                    }
-
-                    break;
-                case 2:
-                    switch (c)
-                    {
-                        case 0:
-                            pMat.M31 = val;
-                            break;
-                        case 1:
-                            pMat.M32 = val;
-                            break;
-                        case 2:
-                            pMat.M33 = val;
-                            break;
-                        case 3:
-                            pMat.M34 = val;
-                            break;
-                    }
-
-                    break;
-                case 3:
-                    switch (c)
-                    {
-                        case 0:
-                            pMat.M41 = val;
-                            break;
-                        case 1:
-                            pMat.M42 = val;
-                            break;
-                        case 2:
-                            pMat.M43 = val;
-                            break;
-                        case 3:
-                            pMat.M44 = val;
-                            break;
-                    }
-
-                    break;
-            }
-        }
-
-        private static float determinant3x3(Matrix4 pMat)
-        {
-            float det = 0;
-            float diag1 = pMat[0, 0]*pMat[1, 1]*pMat[2, 2];
-            float diag2 = pMat[0, 1]*pMat[2, 1]*pMat[2, 0];
-            float diag3 = pMat[0, 2]*pMat[1, 0]*pMat[2, 1];
-            float diag4 = pMat[2, 0]*pMat[1, 1]*pMat[0, 2];
-            float diag5 = pMat[2, 1]*pMat[1, 2]*pMat[0, 0];
-            float diag6 = pMat[2, 2]*pMat[1, 0]*pMat[0, 1];
-
-            det = diag1 + diag2 + diag3 - (diag4 + diag5 + diag6);
-            return det;
-        }
-        
-        private static void DMassCopy(ref d.Mass src, ref d.Mass dst)
-        {
-            dst.c.W = src.c.W;
-            dst.c.X = src.c.X;
-            dst.c.Y = src.c.Y;
-            dst.c.Z = src.c.Z;
-            dst.mass = src.mass;
-            dst.I.M00 = src.I.M00;
-            dst.I.M01 = src.I.M01;
-            dst.I.M02 = src.I.M02;
-            dst.I.M10 = src.I.M10;
-            dst.I.M11 = src.I.M11;
-            dst.I.M12 = src.I.M12;
-            dst.I.M20 = src.I.M20;
-            dst.I.M21 = src.I.M21;
-            dst.I.M22 = src.I.M22;
         }
 
         public override void SetMaterial(int pMaterial)

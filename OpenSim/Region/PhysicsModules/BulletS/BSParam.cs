@@ -142,6 +142,7 @@ public static class BSParam
     public static float AvatarCapsuleWidth { get; private set; }
     public static float AvatarCapsuleDepth { get; private set; }
     public static float AvatarCapsuleHeight { get; private set; }
+    public static bool AvatarUseBefore09SizeComputation { get; private set; }
     public static float AvatarHeightLowFudge { get; private set; }
     public static float AvatarHeightMidFudge { get; private set; }
     public static float AvatarHeightHighFudge { get; private set; }
@@ -149,7 +150,9 @@ public static class BSParam
     public static float AvatarFlyingGroundUpForce { get; private set; }
     public static float AvatarTerminalVelocity { get; private set; }
 	public static float AvatarContactProcessingThreshold { get; private set; }
+    public static float AvatarAddForcePushFactor { get; private set; }
     public static float AvatarStopZeroThreshold { get; private set; }
+    public static float AvatarStopZeroThresholdSquared { get; private set; }
 	public static int AvatarJumpFrames { get; private set; }
 	public static float AvatarBelowGroundUpCorrectionMeters { get; private set; }
 	public static float AvatarStepHeight { get; private set; }
@@ -229,6 +232,8 @@ public static class BSParam
 
     public static float PID_D { get; private set; }    // derivative
     public static float PID_P { get; private set; }    // proportional
+
+    public static float DebugNumber { get; private set; }   // A console setable number used for debugging
 
     // Various constants that come from that other virtual world that shall not be named.
     public const float MinGravityZ = -1f;
@@ -601,7 +606,7 @@ public static class BSParam
             1.3f ),
             // For historical reasons, density is reported  * 100
         new ParameterDefn<float>("AvatarDensity", "Density of an avatar. Changed on avatar recreation. Scaled times 100.",
-            3500f) ,    // 3.5 * 100
+            350f) ,    // 3.5 * 100
         new ParameterDefn<float>("AvatarRestitution", "Bouncyness. Changed on avatar recreation.",
             0f ),
         new ParameterDefn<int>("AvatarShape", "Code for avatar physical shape: 0:capsule, 1:cube, 2:ovoid, 2:mesh",
@@ -612,6 +617,8 @@ public static class BSParam
             0.45f ),
         new ParameterDefn<float>("AvatarCapsuleHeight", "Default height of space around avatar",
             1.5f ),
+        new ParameterDefn<bool>("AvatarUseBefore09SizeComputation", "Use the old fudge method of computing avatar capsule size",
+            true ),
         new ParameterDefn<float>("AvatarHeightLowFudge", "A fudge factor to make small avatars stand on the ground",
             0f ),
         new ParameterDefn<float>("AvatarHeightMidFudge", "A fudge distance to adjust average sized avatars to be standing on ground",
@@ -626,8 +633,12 @@ public static class BSParam
             -54.0f ),
 	    new ParameterDefn<float>("AvatarContactProcessingThreshold", "Distance from capsule to check for collisions",
             0.1f ),
+	    new ParameterDefn<float>("AvatarAddForcePushFactor", "BSCharacter.AddForce is multiplied by this and mass to be like other physics engines",
+            0.315f ),
 	    new ParameterDefn<float>("AvatarStopZeroThreshold", "Movement velocity below which avatar is assumed to be stopped",
-            0.1f ),
+            0.45f,
+            (s) => { return (float)AvatarStopZeroThreshold; },
+            (s,v) => { AvatarStopZeroThreshold = v; AvatarStopZeroThresholdSquared = v * v; } ),
 	    new ParameterDefn<float>("AvatarBelowGroundUpCorrectionMeters", "Meters to move avatar up if it seems to be below ground",
             1.0f ),
 	    new ParameterDefn<int>("AvatarJumpFrames", "Number of frames to allow jump forces. Changes jump height.",
@@ -811,6 +822,9 @@ public static class BSParam
             0.1f ),
 	    new ParameterDefn<float>("LinkConstraintSolverIterations", "Number of solver iterations when computing constraint. (0 = Bullet default)",
             40 ),
+
+	    new ParameterDefn<float>("DebugNumber", "A console setable number sometimes used for debugging",
+            1.0f ),
 
         new ParameterDefn<int>("PhysicsMetricFrames", "Frames between outputting detailed phys metrics. (0 is off)",
             0,

@@ -432,7 +432,6 @@ namespace OpenSim.Region.DataSnapshot
                     m_log.Info("[DATASNAPSHOT]: data service " + url + " notified. Secret: " + m_Secret);
                 }
             }
-
         }
         #endregion
 

@@ -57,6 +57,7 @@ namespace OpenSim.Services.GridService
         protected bool m_AllowDuplicateNames = false;
         protected bool m_AllowHypergridMapSearch = false;
 
+
         protected bool m_SuppressVarregionOverlapCheckOnRegistration = false;
 
         private static Dictionary<string,object> m_ExtraFeatures = new Dictionary<string, object>();
@@ -155,9 +156,9 @@ namespace OpenSim.Services.GridService
 
             if (loginConfig == null || gridConfig == null)
                 return;
-            
+
             string configVal;
-            
+
             configVal = loginConfig.GetString("SearchURL", string.Empty);
             if (!string.IsNullOrEmpty(configVal))
                 m_ExtraFeatures["search-server-url"] = configVal;
@@ -202,14 +203,10 @@ namespace OpenSim.Services.GridService
                 return "Invalid RegionID - cannot be zero UUID";
 
             String reason = "Region overlaps another region";
-            RegionData region = FindAnyConflictingRegion(regionInfos, scopeID, out reason);
-            // If there is a conflicting region, if it has the same ID and same coordinates
-            //    then it is a region re-registering (permissions and ownership checked later).
-            if ((region != null) 
-                && ( (region.coordX != regionInfos.RegionCoordX)
-                    || (region.coordY != regionInfos.RegionCoordY)
-                    || (region.RegionID != regionInfos.RegionID) )
-                )
+            // we should not need to check for overlaps
+
+            RegionData region = m_Database.Get(regionInfos.RegionLocX, regionInfos.RegionLocY, scopeID);
+            if ((region != null) && (region.RegionID != regionInfos.RegionID))
             {
                 // If not same ID and same coordinates, this new region has conflicts and can't be registered.
                 m_log.WarnFormat("{0} Register region conflict in scope {1}. {2}", LogHeader, scopeID, reason);
@@ -463,7 +460,7 @@ namespace OpenSim.Services.GridService
 
             int flags = Convert.ToInt32(region.Data["flags"]);
 
-            if (!m_DeleteOnUnregister || (flags & (int)OpenSim.Framework.RegionFlags.Persistent) != 0)
+            if ((!m_DeleteOnUnregister) || ((flags & (int)OpenSim.Framework.RegionFlags.Persistent) != 0))
             {
                 flags &= ~(int)OpenSim.Framework.RegionFlags.RegionOnline;
                 region.Data["flags"] = flags.ToString();
@@ -478,7 +475,6 @@ namespace OpenSim.Services.GridService
                 }
 
                 return true;
-
             }
 
             return m_Database.Delete(regionID);
@@ -491,10 +487,8 @@ namespace OpenSim.Services.GridService
             
             if (region != null)
             {
-                // Not really? Maybe?
-                // The adjacent regions are presumed to be the same size as the current region
                 List<RegionData> rdatas = m_Database.Get(
-                    region.posX - region.sizeX - 1, region.posY - region.sizeY - 1, 
+                    region.posX - 1, region.posY - 1,
                     region.posX + region.sizeX + 1, region.posY + region.sizeY + 1, scopeID);
 
                 foreach (RegionData rdata in rdatas)
@@ -537,6 +531,7 @@ namespace OpenSim.Services.GridService
         //     be the base coordinate of the region.
         // The snapping is technically unnecessary but is harmless because regions are always
         //     multiples of the legacy region size (256).
+        
         public GridRegion GetRegionByPosition(UUID scopeID, int x, int y)
         {
             uint regionX = Util.WorldToRegionLoc((uint)x);
@@ -804,14 +799,14 @@ namespace OpenSim.Services.GridService
                 return;
             }
 
-            List<RegionData> regions = m_Database.Get(int.MinValue, int.MinValue, int.MaxValue, int.MaxValue, UUID.Zero);
+            List<RegionData> regions = m_Database.Get(0, 0, int.MaxValue, int.MaxValue, UUID.Zero);
 
             OutputRegionsToConsoleSummary(regions);
         }
 
         private void HandleShowGridSize(string module, string[] cmd)
         {
-            List<RegionData> regions = m_Database.Get(int.MinValue, int.MinValue, int.MaxValue, int.MaxValue, UUID.Zero);
+            List<RegionData> regions = m_Database.Get(0, 0, int.MaxValue, int.MaxValue, UUID.Zero);
 
             double size = 0;
 
@@ -872,7 +867,9 @@ namespace OpenSim.Services.GridService
                 return;
             }
 
+
             RegionData region = m_Database.Get((int)Util.RegionToWorldLoc(x), (int)Util.RegionToWorldLoc(y), UUID.Zero);
+
             if (region == null)
             {
                 MainConsole.Instance.OutputFormat("No region found at {0},{1}", x, y);
@@ -889,7 +886,7 @@ namespace OpenSim.Services.GridService
             ConsoleDisplayList dispList = new ConsoleDisplayList();
             dispList.AddRow("Region Name", r.RegionName);
             dispList.AddRow("Region ID", r.RegionID);
-            dispList.AddRow("Position", string.Format("{0},{1}", r.coordX, r.coordY));
+            dispList.AddRow("Location", string.Format("{0},{1}", r.coordX, r.coordY));
             dispList.AddRow("Size", string.Format("{0}x{1}", r.sizeX, r.sizeY));
             dispList.AddRow("URI", r.Data["serverURI"]);
             dispList.AddRow("Owner ID", r.Data["owner_uuid"]);

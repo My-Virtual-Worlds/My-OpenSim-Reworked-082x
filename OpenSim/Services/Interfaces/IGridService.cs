@@ -159,13 +159,24 @@ namespace OpenSim.Services.Interfaces
                 }
             }
             set { 
-                if (value.EndsWith("/")) {
+                if ( value == null)
+                {
+                    m_serverURI = String.Empty;
+                    return;
+                }
+
+                if ( value.EndsWith("/") )
+                {
+
                     m_serverURI = value;
-                } else {
+                }
+                else
+                {
                     m_serverURI = value + '/';
                 }
             }
         }
+
         protected string m_serverURI;
 
         /// <summary>
@@ -358,6 +369,13 @@ namespace OpenSim.Services.Interfaces
             if (kvp.ContainsKey("regionName"))
                 RegionName = (string)kvp["regionName"];
 
+            if (kvp.ContainsKey("access"))
+            {
+                byte access = Convert.ToByte((string)kvp["access"]);
+                Access = access;
+                Maturity = (int)Util.ConvertAccessLevelToMaturity(access);
+            }
+
             if (kvp.ContainsKey("flags") && kvp["flags"] != null)
                 RegionFlags = (OpenSim.Framework.RegionFlags?)Convert.ToInt32((string)kvp["flags"]);
 
@@ -393,9 +411,6 @@ namespace OpenSim.Services.Interfaces
 
             if (kvp.ContainsKey("parcelMapTexture"))
                 UUID.TryParse((string)kvp["parcelMapTexture"], out ParcelImage);
-
-            if (kvp.ContainsKey("access"))
-                Access = Byte.Parse((string)kvp["access"]);
 
             if (kvp.ContainsKey("regionSecret"))
                 RegionSecret =(string)kvp["regionSecret"];
@@ -500,9 +515,13 @@ namespace OpenSim.Services.Interfaces
                 }
                 catch (SocketException e)
                 {
-                    throw new Exception(
+                    /*throw new Exception(
                         "Unable to resolve local hostname " + m_externalHostName + " innerException of type '" +
-                        e + "' attached to this exception", e);
+                        e + "' attached to this exception", e);*/
+                    // Don't throw a fatal exception here, instead, return Null and handle it in the caller.
+                    // Reason is, on systems such as OSgrid it has occured that known hostnames stop
+                    // resolving and thus make surrounding regions crash out with this exception.
+                    return null;
                 }
 
                 return new IPEndPoint(ia, m_internalEndPoint.Port);

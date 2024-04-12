@@ -62,12 +62,16 @@ namespace OpenSim.Framework
         public static readonly int UNDERSHIRT = 10;
         public static readonly int UNDERPANTS = 11;
         public static readonly int SKIRT = 12;
+
+        public static readonly int MAX_BASICWEARABLES = 13;
+
         public static readonly int ALPHA = 13;
         public static readonly int TATTOO = 14;
 
         public static readonly int LEGACY_VERSION_MAX_WEARABLES = 15;
-        public static readonly int PHYSICS = 15;
-        public static readonly int MAX_WEARABLES = 16;
+//        public static readonly int PHYSICS = 15;
+//        public static int MAX_WEARABLES = 16;
+
 
         public static readonly UUID DEFAULT_BODY_ITEM = new UUID("66c41e39-38f9-f75a-024e-585989bfaba9");
         public static readonly UUID DEFAULT_BODY_ASSET = new UUID("66c41e39-38f9-f75a-024e-585989bfab73");
@@ -77,6 +81,9 @@ namespace OpenSim.Framework
 
         public static readonly UUID DEFAULT_SKIN_ITEM = new UUID("77c41e39-38f9-f75a-024e-585989bfabc9");
         public static readonly UUID DEFAULT_SKIN_ASSET = new UUID("77c41e39-38f9-f75a-024e-585989bbabbb");
+
+        public static readonly UUID DEFAULT_EYES_ITEM = new UUID("cdc31054-eed8-4021-994f-4e0c6e861b50");
+        public static readonly UUID DEFAULT_EYES_ASSET = new UUID("4bb6fa4d-1cd2-498a-a84c-95c1a0e745a7");
 
         public static readonly UUID DEFAULT_SHIRT_ITEM = new UUID("77c41e39-38f9-f75a-0000-585989bf0000");
         public static readonly UUID DEFAULT_SHIRT_ASSET = new UUID("00000000-38f9-1111-024e-222222111110");
@@ -221,8 +228,9 @@ namespace OpenSim.Framework
         {
             get
             {
-                AvatarWearable[] defaultWearables = new AvatarWearable[MAX_WEARABLES]; //should be 15 of these
-                for (int i = 0; i < MAX_WEARABLES; i++)
+                // We use the legacy count here because this is just a fallback anyway
+                AvatarWearable[] defaultWearables = new AvatarWearable[LEGACY_VERSION_MAX_WEARABLES];
+                for (int i = 0; i < LEGACY_VERSION_MAX_WEARABLES; i++)
                 {
                     defaultWearables[i] = new AvatarWearable();
                 }
@@ -236,6 +244,9 @@ namespace OpenSim.Framework
                 // Skin
                 defaultWearables[SKIN].Add(DEFAULT_SKIN_ITEM, DEFAULT_SKIN_ASSET);
 
+                // Eyes
+                defaultWearables[EYES].Add(DEFAULT_EYES_ITEM, DEFAULT_EYES_ASSET);
+
                 // Shirt
                 defaultWearables[SHIRT].Add(DEFAULT_SHIRT_ITEM, DEFAULT_SHIRT_ASSET);
 
@@ -244,10 +255,13 @@ namespace OpenSim.Framework
                 
 //                // Alpha
 //                defaultWearables[ALPHA].Add(DEFAULT_ALPHA_ITEM, DEFAULT_ALPHA_ASSET);
-                
-//                // Tattoo
-//                defaultWearables[TATTOO].Add(DEFAULT_TATTOO_ITEM, DEFAULT_TATTOO_ASSET);
-                
+
+                //                // Tattoo
+                //                defaultWearables[TATTOO].Add(DEFAULT_TATTOO_ITEM, DEFAULT_TATTOO_ASSET);
+
+                //                // Physics
+                //                defaultWearables[PHYSICS].Add(DEFAULT_TATTOO_ITEM, DEFAULT_TATTOO_ASSET);
+
                 return defaultWearables;
             }
         }

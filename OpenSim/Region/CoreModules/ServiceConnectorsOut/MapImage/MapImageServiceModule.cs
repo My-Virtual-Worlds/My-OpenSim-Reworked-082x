@@ -53,6 +53,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
     /// </remarks>
 
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "MapImageServiceModule")]
+
     public class MapImageServiceModule : IMapImageUploadModule, ISharedRegionModule
     {
         private static readonly ILog m_log =
@@ -94,8 +95,6 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
                 return;
 
             int refreshminutes = Convert.ToInt32(config.GetString("RefreshTime"));
-            
-            // if refresh is less than zero, disable the module
             if (refreshminutes < 0)
             {
                 m_log.WarnFormat("[MAP IMAGE SERVICE MODULE]: Negative refresh time given in config. Module disabled.");
@@ -127,6 +126,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
                 m_refreshTimer.AutoReset = true;
                 m_refreshTimer.Interval = m_refreshtime;
                 m_refreshTimer.Elapsed += new ElapsedEventHandler(HandleMaptileRefresh);
+
 
                 m_log.InfoFormat("[MAP IMAGE SERVICE MODULE]: enabled with refresh time {0} min and service object {1}",
                              refreshminutes, service);
@@ -218,7 +218,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
             // If the region/maptile is legacy sized, just upload the one tile like it has always been done
             if (mapTile.Width == Constants.RegionSize && mapTile.Height == Constants.RegionSize)
             {
-                ConvertAndUploadMaptile(mapTile,
+                ConvertAndUploadMaptile(scene, mapTile,
                                         scene.RegionInfo.RegionLocX, scene.RegionInfo.RegionLocY,
                                         scene.RegionInfo.RegionName);
             }
@@ -240,7 +240,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
                             (int)Constants.RegionSize, (int)Constants.RegionSize);
                         using (Bitmap subMapTile = mapTile.Clone(rect, mapTile.PixelFormat))
                         {
-                            ConvertAndUploadMaptile(subMapTile,
+                            ConvertAndUploadMaptile(scene, subMapTile,
                                                     scene.RegionInfo.RegionLocX + (xx / Constants.RegionSize),
                                                     scene.RegionInfo.RegionLocY + (yy / Constants.RegionSize),
                                                     scene.Name);
@@ -253,8 +253,10 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
         ///<summary>
         ///
         ///</summary>
-        private void UploadMapTile(IScene scene)
+        public void UploadMapTile(IScene scene)
         {
+            m_log.DebugFormat("{0}: upload maptile for {1}", LogHeader, scene.RegionInfo.RegionName);
+
             // Create a JPG map tile and upload it to the AddMapTile API
             IMapImageGenerator tileGenerator = scene.RequestModuleInterface<IMapImageGenerator>();
             if (tileGenerator == null)
@@ -265,18 +267,16 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
 
             using (Bitmap mapTile = tileGenerator.CreateMapTile())
             {
-                if (mapTile != null)
-                {
-                    UploadMapTile(scene, mapTile);
-                }
-                else
-                {
-                    m_log.WarnFormat("{0} Tile image generation failed", LogHeader);
-                }
+                // XXX: The MapImageModule will return a null if the user has chosen not to create map tiles and there
+                // is no static map tile.
+                if (mapTile == null)
+                    return;
+
+                UploadMapTile(scene, mapTile);
             }
         }
 
-        private void ConvertAndUploadMaptile(Image tileImage, uint locX, uint locY, string regionName)
+        private void ConvertAndUploadMaptile(IScene scene, Image tileImage, uint locX, uint locY, string regionName)
         {
             byte[] jpgData = Utils.EmptyBytes;
 
@@ -288,7 +288,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.MapImage
             if (jpgData != Utils.EmptyBytes)
             {
                 string reason = string.Empty;
-                if (!m_MapService.AddMapTile((int)locX, (int)locY, jpgData, out reason))
+                if (!m_MapService.AddMapTile((int)locX, (int)locY, jpgData, scene.RegionInfo.ScopeID, out reason))
                 {
                     m_log.DebugFormat("{0} Unable to upload tile image for {1} at {2}-{3}: {4}", LogHeader,
                         regionName, locX, locY, reason);

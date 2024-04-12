@@ -150,7 +150,8 @@ namespace OpenSim.Services.Interfaces
             // Wearables
             Data["AvatarHeight"] = appearance.AvatarHeight.ToString();
 
-            for (int i = 0 ; i < AvatarWearable.MAX_WEARABLES ; i++)
+            // TODO: With COF, is this even needed?
+            for (int i = 0 ; i < AvatarWearable.LEGACY_VERSION_MAX_WEARABLES ; i++)
             {
                 for (int j = 0 ; j < appearance.Wearables[i].Count ; j++)
                 {
@@ -211,8 +212,8 @@ namespace OpenSim.Services.Interfaces
                     float h = float.Parse(Data["AvatarHeight"]);
                     if( h == 0f)
                         h = 1.9f;
-                  
-                    appearance.AvatarHeight = h;
+                    appearance.SetSize(new Vector3(0.45f, 0.6f, h ));
+//                    appearance.AvatarHeight = float.Parse(Data["AvatarHeight"]);
                 }
 
                 // Legacy Wearables
@@ -287,11 +288,10 @@ namespace OpenSim.Services.Interfaces
                     //byte[] binary = new byte[AvatarAppearance.VISUALPARAM_COUNT];
 
                     //for (int i = 0 ; i < vps.Length && i < binary.Length ; i++)
-                    
                     byte[] binary = new byte[vps.Length];
 
                     for (int i = 0; i < vps.Length; i++)
-                        binary[i] = (byte)Convert.ToInt32(vps[i]);
+                    	binary[i] = (byte)Convert.ToInt32(vps[i]);
                     
                     appearance.VisualParams = binary;
                 }
@@ -357,6 +357,7 @@ namespace OpenSim.Services.Interfaces
                     appearance.Wearables[AvatarWearable.EYES].Wear(
                             AvatarWearable.DefaultWearables[
                             AvatarWearable.EYES][0]);
+
             }
             catch
             {

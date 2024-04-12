@@ -33,7 +33,7 @@ using log4net;
 using OMV = OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.PhysicsModules.SharedBase;
-using OpenSim.Region.PhysicsModule.ConvexDecompositionDotNet;
+using OpenSim.Region.PhysicsModules.ConvexDecompositionDotNet;
 
 namespace OpenSim.Region.PhysicsModule.BulletS
 {
@@ -280,20 +280,20 @@ public class BSPrim : BSPhysObject
         });
     }
 
-    public override void LockAngularMotion(OMV.Vector3 axis)
+    public override void LockAngularMotion(byte axislocks)
     {
-        DetailLog("{0},BSPrim.LockAngularMotion,call,axis={1}", LocalID, axis);
+        DetailLog("{0},BSPrim.LockAngularMotion,call,axis={1}", LocalID, axislocks);
 
         ApplyAxisLimits(ExtendedPhysics.PHYS_AXIS_UNLOCK_ANGULAR, 0f, 0f);
-        if (axis.X != 1)
+        if ((axislocks & 0x02) != 0)
         {
             ApplyAxisLimits(ExtendedPhysics.PHYS_AXIS_LOCK_ANGULAR_X, 0f, 0f);
         }
-        if (axis.Y != 1)
+        if ((axislocks & 0x04) != 0)
         {
             ApplyAxisLimits(ExtendedPhysics.PHYS_AXIS_LOCK_ANGULAR_Y, 0f, 0f);
         }
-        if (axis.Z != 1)
+        if ((axislocks & 0x08) != 0)
         {
             ApplyAxisLimits(ExtendedPhysics.PHYS_AXIS_LOCK_ANGULAR_Z, 0f, 0f);
         }
@@ -394,7 +394,7 @@ public class BSPrim : BSPhysObject
                 // Apply upforce and overcome gravity.
                 OMV.Vector3 correctionForce = upForce - PhysScene.DefaultGravity;
                 DetailLog("{0},BSPrim.PositionSanityCheck,applyForce,pos={1},upForce={2},correctionForce={3}", LocalID, RawPosition, upForce, correctionForce);
-                AddForce(correctionForce, false, inTaintTime);
+                AddForce(inTaintTime, correctionForce);
                 ret = true;
             }
         }
@@ -643,6 +643,59 @@ public class BSPrim : BSPhysObject
             if (vehicleActor != null)
             {
                 vehicleActor.ProcessVehicleFlags(param, remove);
+            }
+        });
+    }
+
+    public override void SetVehicle(object pvdata)
+    {
+        PhysScene.TaintedObject(LocalID, "BSPrim.SetVehicle", delegate ()
+        {
+            BSDynamics vehicleActor = GetVehicleActor(true /* createIfNone */);
+            if (vehicleActor != null && (pvdata is VehicleData) )
+            {
+                VehicleData vdata = (VehicleData)pvdata;
+                // vehicleActor.ProcessSetVehicle((VehicleData)vdata);
+
+                vehicleActor.ProcessTypeChange(vdata.m_type);
+                vehicleActor.ProcessVehicleFlags(-1, false);
+                vehicleActor.ProcessVehicleFlags((int)vdata.m_flags, false);
+
+                // Linear properties
+                vehicleActor.ProcessVectorVehicleParam(Vehicle.LINEAR_MOTOR_DIRECTION, vdata.m_linearMotorDirection);
+                vehicleActor.ProcessVectorVehicleParam(Vehicle.LINEAR_FRICTION_TIMESCALE, vdata.m_linearFrictionTimescale);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.LINEAR_MOTOR_DECAY_TIMESCALE, vdata.m_linearMotorDecayTimescale);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.LINEAR_MOTOR_TIMESCALE, vdata.m_linearMotorTimescale);
+                vehicleActor.ProcessVectorVehicleParam(Vehicle.LINEAR_MOTOR_OFFSET, vdata.m_linearMotorOffset);
+
+                //Angular properties
+                vehicleActor.ProcessVectorVehicleParam(Vehicle.ANGULAR_MOTOR_DIRECTION, vdata.m_angularMotorDirection);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.ANGULAR_MOTOR_TIMESCALE, vdata.m_angularMotorTimescale);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.ANGULAR_MOTOR_DECAY_TIMESCALE, vdata.m_angularMotorDecayTimescale);
+                vehicleActor.ProcessVectorVehicleParam(Vehicle.ANGULAR_FRICTION_TIMESCALE, vdata.m_angularFrictionTimescale);
+
+                //Deflection properties
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.ANGULAR_DEFLECTION_EFFICIENCY, vdata.m_angularDeflectionEfficiency);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.ANGULAR_DEFLECTION_TIMESCALE, vdata.m_angularDeflectionTimescale);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.LINEAR_DEFLECTION_EFFICIENCY, vdata.m_linearDeflectionEfficiency);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.LINEAR_DEFLECTION_TIMESCALE, vdata.m_linearDeflectionTimescale);
+
+                //Banking properties
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.BANKING_EFFICIENCY, vdata.m_bankingEfficiency);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.BANKING_MIX, vdata.m_bankingMix);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.BANKING_TIMESCALE, vdata.m_bankingTimescale);
+
+                //Hover and Buoyancy properties
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.HOVER_HEIGHT, vdata.m_VhoverHeight);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.HOVER_EFFICIENCY, vdata.m_VhoverEfficiency);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.HOVER_TIMESCALE, vdata.m_VhoverTimescale);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.BUOYANCY, vdata.m_VehicleBuoyancy);
+
+                //Attractor properties
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.VERTICAL_ATTRACTION_EFFICIENCY, vdata.m_verticalAttractionEfficiency);
+                vehicleActor.ProcessFloatVehicleParam(Vehicle.VERTICAL_ATTRACTION_TIMESCALE, vdata.m_verticalAttractionTimescale);
+
+                vehicleActor.ProcessRotationVehicleParam(Vehicle.REFERENCE_FRAME, vdata.m_referenceFrame);
             }
         });
     }
@@ -1173,6 +1226,10 @@ public class BSPrim : BSPhysObject
     // Used for llSetHoverHeight and maybe vehicle height
     // Hover Height will override MoveTo target's Z
     public override bool PIDHoverActive {
+        get 
+        {
+        return base.HoverActive;
+        }
         set {
             base.HoverActive = value;
             EnableActor(HoverActive, HoverActorName, delegate()
@@ -1192,14 +1249,18 @@ public class BSPrim : BSPhysObject
         // Per documentation, max force is limited.
         OMV.Vector3 addForce = Util.ClampV(force, BSParam.MaxAddForceMagnitude);
 
-        // Since this force is being applied in only one step, make this a force per second.
-        addForce /= PhysScene.LastTimeStep;
-        AddForce(addForce, pushforce, false /* inTaintTime */);
+        // Push forces seem to be scaled differently (follow pattern in ubODE)
+        if (!pushforce) {
+            // Since this force is being applied in only one step, make this a force per second.
+            addForce /= PhysScene.LastTimeStep;
+        }
+
+        AddForce(false /* inTaintTime */, addForce);
     }
 
     // Applying a force just adds this to the total force on the object.
     // This added force will only last the next simulation tick.
-    public override void AddForce(OMV.Vector3 force, bool pushforce, bool inTaintTime) {
+    public override void AddForce(bool inTaintTime, OMV.Vector3 force) {
         // for an object, doesn't matter if force is a pushforce or not
         if (IsPhysicallyActive)
         {
@@ -1258,7 +1319,7 @@ public class BSPrim : BSPhysObject
     }
 
     // BSPhysObject.AddAngularForce()
-    public override void AddAngularForce(OMV.Vector3 force, bool pushforce, bool inTaintTime)
+    public override void AddAngularForce(bool inTaintTime, OMV.Vector3 force)
     {
         if (force.IsFinite())
         {

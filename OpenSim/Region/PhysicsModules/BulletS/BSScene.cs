@@ -523,13 +523,13 @@ namespace OpenSim.Region.PhysicsModule.BulletS
             return null;
         }
 
-        public override PhysicsActor AddAvatar(uint localID, string avName, Vector3 position, Vector3 velocity, Vector3 size, bool isFlying)
+        public override PhysicsActor AddAvatar(uint localID, string avName, Vector3 position, Vector3 size, float footOffset, bool isFlying)
         {
             // m_log.DebugFormat("{0}: AddAvatar: {1}", LogHeader, avName);
 
             if (!m_initialized) return null;
 
-            BSCharacter actor = new BSCharacter(localID, avName, this, position, velocity, size, isFlying);
+            BSCharacter actor = new BSCharacter(localID, avName, this, position, Vector3.Zero, size, footOffset, isFlying);
             lock (PhysObjects)
                 PhysObjects.Add(localID, actor);
 
@@ -679,7 +679,6 @@ namespace OpenSim.Region.PhysicsModule.BulletS
             try
             {
                 numSubSteps = PE.PhysicsStep(World, timeStep, m_maxSubSteps, m_fixedTimeStep, out updatedEntityCount, out collidersCount);
-
             }
             catch (Exception e)
             {
@@ -762,7 +761,8 @@ namespace OpenSim.Region.PhysicsModule.BulletS
             // The physics engine returns the number of milliseconds it simulated this call.
             // These are summed and normalized to one second and divided by 1000 to give the reported physics FPS.
             // Multiply by a fixed nominal frame rate to give a rate similar to the simulator (usually 55).
-            m_simulatedTime +=  (float)numSubSteps * m_fixedTimeStep * 1000f * NominalFrameRate;
+//            m_simulatedTime +=  (float)numSubSteps * m_fixedTimeStep * 1000f * NominalFrameRate;
+            m_simulatedTime +=  (float)numSubSteps * m_fixedTimeStep;
         }
 
         // Called by a BSPhysObject to note that it has changed properties and this information
@@ -849,7 +849,7 @@ namespace OpenSim.Region.PhysicsModule.BulletS
 
             // Return the framerate simulated to give the above returned results.
             // (Race condition here but this is just bookkeeping so rare mistakes do not merit a lock).
-            float simTime = m_simulatedTime;
+            float simTime = m_simulatedTime / timeStep;
             m_simulatedTime = 0f;
             return simTime;
         }
@@ -879,7 +879,7 @@ namespace OpenSim.Region.PhysicsModule.BulletS
 
             if (collider.IsInitialized)
             {
-                if (collider.Collide(collidingWith, collidee, collidePoint, collideNormal, penetration))
+                if (collider.Collide(collidee, collidePoint, collideNormal, penetration))
                 {
                     // If a collision was 'good', remember to send it to the simulator
                     lock (CollisionLock)

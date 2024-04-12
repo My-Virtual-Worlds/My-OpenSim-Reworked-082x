@@ -148,6 +148,7 @@ namespace OpenSim.Framework.Servers.HttpServer
                     _httpResponse.Connection = ConnectionType.Close;
                     _httpResponse.KeepAlive = 0;
                 }
+
                 else
                 {
                     _httpResponse.Connection = ConnectionType.KeepAlive;
@@ -320,6 +321,7 @@ namespace OpenSim.Framework.Servers.HttpServer
         public void Send()
         {
             _httpResponse.Body.Flush();
+
             _httpResponse.Send();
         }
 

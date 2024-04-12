@@ -98,13 +98,13 @@ namespace OpenSim.Services.Connectors.Simulation
             args["teleport_flags"] = OSD.FromString(flags.ToString());
         }
 
-        public bool CreateAgent(GridRegion source, GridRegion destination, AgentCircuitData aCircuit, uint flags, out string reason)
+        public bool CreateAgent(GridRegion source, GridRegion destination, AgentCircuitData aCircuit, uint flags, EntityTransferContext ctx, out string reason)
         {
             string tmp = String.Empty;
-            return CreateAgent(source, destination, aCircuit, flags, out tmp, out reason);
+            return CreateAgent(source, destination, aCircuit, flags, ctx, out tmp, out reason);
         }
 
-        public bool CreateAgent(GridRegion source, GridRegion destination, AgentCircuitData aCircuit, uint flags, out string myipaddress, out string reason)
+        public bool CreateAgent(GridRegion source, GridRegion destination, AgentCircuitData aCircuit, uint flags, EntityTransferContext ctx, out string myipaddress, out string reason)
         {
             m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: Creating agent at {0}", destination.ServerURI);
             reason = String.Empty;
@@ -112,6 +112,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
             if (destination == null)
             {
+                reason = "Destination not found";
                 m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Given destination is null");
                 return false;
             }
@@ -120,7 +121,8 @@ namespace OpenSim.Services.Connectors.Simulation
             
             try
             {
-                OSDMap args = aCircuit.PackAgentCircuitData();
+                OSDMap args = aCircuit.PackAgentCircuitData(ctx);
+                args["context"] = ctx.Pack();
                 PackData(args, source, aCircuit, destination, flags);
 
                 OSDMap result = WebUtil.PostToServiceCompressed(uri, args, 30000);
@@ -171,9 +173,9 @@ namespace OpenSim.Services.Connectors.Simulation
         /// <summary>
         /// Send complete data about an agent in this region to a neighbor
         /// </summary>
-        public bool UpdateAgent(GridRegion destination, AgentData data)
+        public bool UpdateAgent(GridRegion destination, AgentData data, EntityTransferContext ctx)
         {
-            return UpdateAgent(destination, (IAgentData)data, 200000); // yes, 200 seconds
+            return UpdateAgent(destination, (IAgentData)data, ctx, 200000); // yes, 200 seconds
         }
 
         private ExpiringCache<string, bool> _failedSims = new ExpiringCache<string, bool>();
@@ -234,7 +236,8 @@ namespace OpenSim.Services.Connectors.Simulation
                     }
                 }
 
-                success = UpdateAgent(destination, (IAgentData)pos, 10000);
+                EntityTransferContext ctx = new EntityTransferContext(); // Dummy, not needed for position
+                success = UpdateAgent(destination, (IAgentData)pos, ctx, 10000);
             }
             // we get here iff success == false
             // blacklist sim for 2 minutes
@@ -249,7 +252,7 @@ namespace OpenSim.Services.Connectors.Simulation
         /// <summary>
         /// This is the worker function to send AgentData to a neighbor region
         /// </summary>
-        private bool UpdateAgent(GridRegion destination, IAgentData cAgentData, int timeout)
+        private bool UpdateAgent(GridRegion destination, IAgentData cAgentData, EntityTransferContext ctx, int timeout)
         {
             // m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: UpdateAgent in {0}", destination.ServerURI);
 
@@ -258,12 +261,13 @@ namespace OpenSim.Services.Connectors.Simulation
 
             try
             {
-                OSDMap args = cAgentData.Pack();
+                OSDMap args = cAgentData.Pack(ctx);
 
                 args["destination_x"] = OSD.FromString(destination.RegionLocX.ToString());
                 args["destination_y"] = OSD.FromString(destination.RegionLocY.ToString());
                 args["destination_name"] = OSD.FromString(destination.RegionName);
                 args["destination_uuid"] = OSD.FromString(destination.RegionID.ToString());
+                args["context"] = ctx.Pack();
 
                 OSDMap result = WebUtil.PutToServiceCompressed(uri, args, timeout);
                 if (result["Success"].AsBoolean())
@@ -284,6 +288,8 @@ namespace OpenSim.Services.Connectors.Simulation
 
         public bool QueryAccess(GridRegion destination, UUID agentID, string agentHomeURI, bool viaTeleport, Vector3 position, List<UUID> featuresAvailable, EntityTransferContext ctx, out string reason)
         {
+            Culture.SetCurrentCulture();
+
             reason = "Failed to contact destination";
 
             // m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: QueryAccess start, position={0}", position);
@@ -306,6 +312,8 @@ namespace OpenSim.Services.Connectors.Simulation
             request.Add("simulation_service_accepted_min", OSD.FromReal(VersionInfo.SimulationServiceVersionAcceptedMin));
             request.Add("simulation_service_accepted_max", OSD.FromReal(VersionInfo.SimulationServiceVersionAcceptedMax));
 
+            request.Add("context", ctx.Pack());
+
             OSDArray features = new OSDArray();
             foreach (UUID feature in featuresAvailable)
                 features.Add(OSD.FromString(feature.ToString()));
@@ -325,7 +333,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
                     // FIXME: If there is a _Result map then it's the success key here that indicates the true success
                     // or failure, not the sibling result node.
-                    success = data["success"];
+                    success = data["success"].AsBoolean();
 
                     reason = data["reason"].AsString();
                     // We will need to plumb this and start sing the outbound version as well
@@ -345,8 +353,6 @@ namespace OpenSim.Services.Connectors.Simulation
                             ctx.OutboundVersion = float.Parse(parts[1]);
                         }
                     }
-                    if (data.ContainsKey("variable_wearables_count_supported"))
-                        ctx.VariableWearablesSupported = true;
 
                     m_log.DebugFormat(
                         "[REMOTE SIMULATION CONNECTOR]: QueryAccess to {0} returned {1}, reason {2}, version {3}/{4}",
@@ -379,7 +385,6 @@ namespace OpenSim.Services.Connectors.Simulation
                     return false;
                 }
 
-
                 featuresAvailable.Clear();
 
                 if (result.ContainsKey("features"))
@@ -389,6 +394,14 @@ namespace OpenSim.Services.Connectors.Simulation
                     foreach (OSD o in array)
                         featuresAvailable.Add(new UUID(o.AsString()));
                 }
+
+                // Version stuff
+                if (ctx.OutboundVersion < 0.5)
+                    ctx.WearablesCount = AvatarWearable.LEGACY_VERSION_MAX_WEARABLES;
+                else if (ctx.OutboundVersion < 0.6)
+                    ctx.WearablesCount = AvatarWearable.LEGACY_VERSION_MAX_WEARABLES + 1;
+                else
+                    ctx.WearablesCount = -1; // send all (just in case..)
 
                 return success;
             }

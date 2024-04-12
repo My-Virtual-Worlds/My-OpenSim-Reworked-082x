@@ -47,7 +47,7 @@ using log4net;
  * it's always availabe and thus the default in case of configuration errors
 */
 
-namespace OpenSim.Region.PhysicsModules.Meshing
+namespace OpenSim.Region.PhysicsModule.Meshing
 {
 
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "ZeroMesher")]
@@ -110,23 +110,36 @@ namespace OpenSim.Region.PhysicsModules.Meshing
         #region IMesher
         public IMesh CreateMesh(String primName, PrimitiveBaseShape primShape, Vector3 size, float lod)
         {
-            return CreateMesh(primName, primShape, size, lod, false, false);
+            return CreateMesh(primName, primShape, size, lod, false);
+        }
+
+        public IMesh CreateMesh(String primName, PrimitiveBaseShape primShape, Vector3 size, float lod, bool isPhysical, bool shouldCache, bool convex, bool forOde)
+        {
+            return CreateMesh(primName, primShape, size, lod, false);
+        }
+
+        public IMesh CreateMesh(String primName, PrimitiveBaseShape primShape, Vector3 size, float lod, bool isPhysical, bool convex,bool forOde)
+        {
+            return CreateMesh(primName, primShape, size, lod, false);
         }
 
         public IMesh CreateMesh(String primName, PrimitiveBaseShape primShape, Vector3 size, float lod, bool isPhysical)
-        {
-            return CreateMesh(primName, primShape, size, lod, false, false);
-        }
-
-        public IMesh CreateMesh(String primName, PrimitiveBaseShape primShape, Vector3 size, float lod, bool isPhysical, bool shouldCache)
         {
             // Remove the reference to the encoded JPEG2000 data so it can be GCed
             primShape.SculptData = OpenMetaverse.Utils.EmptyBytes;
 
             return null;
         }
+
+        public IMesh GetMesh(String primName, PrimitiveBaseShape primShape, Vector3 size, float lod, bool isPhysical, bool convex)
+        {
+            return null;
+        }
+
+        public void ReleaseMesh(IMesh mesh) { }
+        public void ExpireReleaseMeshs() { }
+        public void ExpireFileCache() { }
+
         #endregion
-
-
     }
 }

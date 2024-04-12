@@ -211,7 +211,7 @@ namespace OpenSim.Region.PhysicsModule.BasicPhysics
         {
         }
 
-        public override void LockAngularMotion(Vector3 axis)
+        public override void LockAngularMotion(byte axislocks)
         {
         }
 
@@ -254,6 +254,7 @@ namespace OpenSim.Region.PhysicsModule.BasicPhysics
 
         public override bool PIDHoverActive
         {
+            get { return false; }
             set { return; }
         }
 

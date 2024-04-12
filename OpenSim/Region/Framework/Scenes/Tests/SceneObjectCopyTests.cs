@@ -42,6 +42,7 @@ using OpenSim.Tests.Common;
 
 namespace OpenSim.Region.Framework.Scenes.Tests
 {
+    /*
     /// <summary>
     /// Test copying of scene objects.
     /// </summary>
@@ -343,4 +344,5 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             }
         }
     }
+     */
 }

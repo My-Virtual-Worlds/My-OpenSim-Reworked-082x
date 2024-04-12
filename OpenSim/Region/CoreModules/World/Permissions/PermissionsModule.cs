@@ -43,8 +43,8 @@ using PermissionMask = OpenSim.Framework.PermissionMask;
 
 namespace OpenSim.Region.CoreModules.World.Permissions
 {
-    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "PermissionsModule")]
-    public class PermissionsModule : INonSharedRegionModule, IPermissionsModule
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "DefaultPermissionsModule")]
+    public class DefaultPermissionsModule : INonSharedRegionModule, IPermissionsModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
                 
@@ -179,7 +179,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             m_RegionManagerIsGod = Util.GetConfigVarFromSections<bool>(config, "region_manager_is_god",
                 new string[] { "Startup", "Permissions" }, false); 
             m_ParcelOwnerIsGod = Util.GetConfigVarFromSections<bool>(config, "parcel_owner_is_god",
-                new string[] { "Startup", "Permissions" }, true);
+                new string[] { "Startup", "Permissions" }, false);
 
             m_SimpleBuildPermissions = Util.GetConfigVarFromSections<bool>(config, "simple_build_permissions",
                 new string[] { "Startup", "Permissions" }, false); 
@@ -271,6 +271,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             m_scene.Permissions.OnIsGod += IsGod;
             m_scene.Permissions.OnIsGridGod += IsGridGod;
             m_scene.Permissions.OnIsAdministrator += IsAdministrator;
+            m_scene.Permissions.OnIsEstateManager += IsEstateManager;
             m_scene.Permissions.OnDuplicateObject += CanDuplicateObject;
             m_scene.Permissions.OnDeleteObject += CanDeleteObject; 
             m_scene.Permissions.OnEditObject += CanEditObject; 
@@ -287,6 +288,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             m_scene.Permissions.OnCompileScript += CanCompileScript;
             m_scene.Permissions.OnSellParcel += CanSellParcel;
             m_scene.Permissions.OnTakeObject += CanTakeObject;
+            m_scene.Permissions.OnSellGroupObject += CanSellGroupObject;
             m_scene.Permissions.OnTakeCopyObject += CanTakeCopyObject;
             m_scene.Permissions.OnTerraformLand += CanTerraformLand;
             m_scene.Permissions.OnLinkObject += CanLinkObject; 
@@ -349,7 +351,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
 
         public string Name
         {
-            get { return "PermissionsModule"; }
+            get { return "DefaultPermissionsModule"; }
         }
 
         public Type ReplaceableInterface
@@ -705,7 +707,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             if (user == objectOwner)
                 return PermissionClass.Owner;
 
-            if (IsFriendWithPerms(user, objectOwner))
+            if (IsFriendWithPerms(user, objectOwner) && !obj.ParentGroup.IsAttachment)
                 return PermissionClass.Owner;
 
             // Estate users should be able to edit anything in the sim if RegionOwnerIsGod is set
@@ -1052,7 +1054,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             return GenericObjectPermission(editorID, objectID, false);
         }
 
-        private bool CanEditParcelProperties(UUID user, ILandObject parcel, GroupPowers p, Scene scene)
+        private bool CanEditParcelProperties(UUID user, ILandObject parcel, GroupPowers p, Scene scene, bool allowManager)
         {
             DebugPermissionInformation(MethodInfo.GetCurrentMethod().Name);
             if (m_bypassPermissions) return m_bypassPermissionsValue;
@@ -1098,8 +1100,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             if (objectID == UUID.Zero) // User inventory
             {
                 IInventoryService invService = m_scene.InventoryService;
-                InventoryItemBase assetRequestItem = new InventoryItemBase(notecard, user);
-                assetRequestItem = invService.GetItem(assetRequestItem);
+                InventoryItemBase assetRequestItem = invService.GetItem(user, notecard);
                 if (assetRequestItem == null && LibraryRootFolder != null) // Library item
                 {
                     assetRequestItem = LibraryRootFolder.FindItem(notecard);
@@ -1507,7 +1508,15 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             DebugPermissionInformation(MethodInfo.GetCurrentMethod().Name);
             if (m_bypassPermissions) return m_bypassPermissionsValue;
 
-            return GenericParcelOwnerPermission(user, parcel, (ulong)GroupPowers.LandSetSale, false);
+            return GenericParcelOwnerPermission(user, parcel, (ulong)GroupPowers.LandSetSale, true);
+        }
+
+        private bool CanSellGroupObject(UUID userID, UUID groupID, Scene scene)
+        {
+            DebugPermissionInformation(MethodInfo.GetCurrentMethod().Name);
+            if (m_bypassPermissions) return m_bypassPermissionsValue;
+
+            return IsGroupMember(groupID, userID, (ulong)GroupPowers.ObjectSetForSale);
         }
 
         private bool CanTakeObject(UUID objectID, UUID stealer, Scene scene)
@@ -1615,8 +1624,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             if (objectID == UUID.Zero) // User inventory
             {
                 IInventoryService invService = m_scene.InventoryService;
-                InventoryItemBase assetRequestItem = new InventoryItemBase(script, user);
-                assetRequestItem = invService.GetItem(assetRequestItem);
+                InventoryItemBase assetRequestItem = invService.GetItem(user, script);
                 if (assetRequestItem == null && LibraryRootFolder != null) // Library item
                 {
                     assetRequestItem = LibraryRootFolder.FindItem(script);
@@ -1712,8 +1720,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             if (objectID == UUID.Zero) // User inventory
             {
                 IInventoryService invService = m_scene.InventoryService;
-                InventoryItemBase assetRequestItem = new InventoryItemBase(notecard, user);
-                assetRequestItem = invService.GetItem(assetRequestItem);
+                InventoryItemBase assetRequestItem = invService.GetItem(user, notecard);
                 if (assetRequestItem == null && LibraryRootFolder != null) // Library item
                 {
                     assetRequestItem = LibraryRootFolder.FindItem(notecard);

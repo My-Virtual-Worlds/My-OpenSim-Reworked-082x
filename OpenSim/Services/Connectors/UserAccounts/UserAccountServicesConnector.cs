@@ -195,6 +195,11 @@ namespace OpenSim.Services.Connectors
         {
         }
 
+        public List<UserAccount> GetUserAccountsWhere(UUID scopeID, string where)
+        {
+            return null; // Not implemented for regions
+        }
+
         public virtual bool StoreUserAccount(UserAccount data)
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();

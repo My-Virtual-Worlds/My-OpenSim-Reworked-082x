@@ -231,8 +231,7 @@ namespace OpenSim.Services.GridService
                 {
                     regionName = parts[2];
                 }
-
-
+               
                 bool success = TryCreateLink(scopeID, xloc, yloc, regionName, port, host, ownerID, out regInfo, out reason);
                 if (success)
                 {
@@ -379,8 +378,7 @@ namespace OpenSim.Services.GridService
             region = m_GridService.GetRegionByUUID(scopeID, regionID);
             if (region != null)
             {
-                m_log.DebugFormat("[HYPERGRID LINKER]: Region already exists in coordinates <{0},{1}>",
-                    Util.WorldToRegionLoc((uint)region.RegionLocX), Util.WorldToRegionLoc((uint)region.RegionLocY));
+              m_log.DebugFormat("[HYPERGRID LINKER]: Region already exists in coordinates <{0},{1}>",            Util.WorldToRegionLoc((uint)region.RegionLocX), Util.WorldToRegionLoc((uint)region.RegionLocY));
                 regInfo = region;
                 return true;
             }

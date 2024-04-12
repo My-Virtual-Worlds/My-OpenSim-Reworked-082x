@@ -288,7 +288,7 @@ namespace OpenSim.Region.PhysicsModule.POS
                     character._velocity.Z = (character.Position.Z - oldposZ)/timeStep;
                 }
             }
-            return fps;
+            return 1.0f;
         }
 
         public override void GetResults()

@@ -55,7 +55,7 @@ namespace OpenSim.Region.ClientStack.Linden
     /// the normal part of the response in the capability handler.
     /// </remarks>
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "SimulatorFeaturesModule")]
-    public class SimulatorFeaturesModule : ISharedRegionModule, ISimulatorFeaturesModule
+    public class SimulatorFeaturesModule : INonSharedRegionModule, ISimulatorFeaturesModule
     {
         private static readonly ILog m_log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -126,10 +126,6 @@ namespace OpenSim.Region.ClientStack.Linden
             GetGridExtraFeatures(s);
         }
 
-        public void PostInitialise()
-        {
-        }
-
         public void Close() { }
 
         public string Name { get { return "SimulatorFeaturesModule"; } }
@@ -155,6 +151,7 @@ namespace OpenSim.Region.ClientStack.Linden
                 m_features["MeshRezEnabled"] = true;
                 m_features["MeshUploadEnabled"] = true;
                 m_features["MeshXferEnabled"] = true;
+
                 m_features["PhysicsMaterialsEnabled"] = true;
 
                 OSDMap typesMap = new OSDMap();
@@ -173,6 +170,10 @@ namespace OpenSim.Region.ClientStack.Linden
                 else
                     extrasMap = new OSDMap();
 
+                extrasMap["AvatarSkeleton"] = true;
+                extrasMap["AnimationSet"] = true;
+
+                // TODO: Take these out of here into their respective modules, like map-server-url
                 if (m_SearchURL != string.Empty)
                     extrasMap["search-server-url"] = m_SearchURL;
                 if (!string.IsNullOrEmpty(m_DestinationGuideURL))

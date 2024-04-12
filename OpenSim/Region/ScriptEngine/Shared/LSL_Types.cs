@@ -100,21 +100,32 @@ namespace OpenSim.Region.ScriptEngine.Shared
 
             #region Overriders
 
+            public static implicit operator Boolean(Vector3 vec)
+            {
+                if (vec.x != 0)
+                    return true;
+                if (vec.y != 0)
+                    return true;
+                if (vec.z != 0)
+                    return true;
+                return false;
+            }
+
             public override string ToString()
             {
-				string s=String.Format(Culture.FormatProvider,"<{0:0.000000},{1:0.000000},{2:0.000000}>", x, y, z);
+                string s = String.Format(Culture.FormatProvider, "<{0:0.000000}, {1:0.000000}, {2:0.000000}>", x, y, z);
                 return s;
             }
 
             public static explicit operator LSLString(Vector3 vec)
             {
-				string s=String.Format(Culture.FormatProvider,"<{0:0.000000},{1:0.000000},{2:0.000000}>", vec.x, vec.y, vec.z);
+                string s = String.Format(Culture.FormatProvider, "<{0:0.000000}, {1:0.000000}, {2:0.000000}>", vec.x, vec.y, vec.z);
                 return new LSLString(s);
             }
 
             public static explicit operator string(Vector3 vec)
             {
-				string s=String.Format(Culture.FormatProvider,"<{0:0.000000},{1:0.000000},{2:0.000000}>", vec.x, vec.y, vec.z);
+                string s = String.Format(Culture.FormatProvider, "<{0:0.000000}, {1:0.000000}, {2:0.000000}>", vec.x, vec.y, vec.z);
                 return s;
             }
 
@@ -397,6 +408,18 @@ namespace OpenSim.Region.ScriptEngine.Shared
             #endregion
 
             #region Overriders
+            public static implicit operator Boolean(Quaternion q)
+            {
+                if (q.x != 0)
+                    return true;
+                if (q.y != 0)
+                    return true;
+                if (q.z != 0)
+                    return true;
+                if (q.s != 1.0f)
+                    return true;
+                return false;
+            }
 
             public override int GetHashCode()
             {
@@ -414,19 +437,19 @@ namespace OpenSim.Region.ScriptEngine.Shared
 
             public override string ToString()
             {
-                string st=String.Format(Culture.FormatProvider, "<{0:0.000000},{1:0.000000},{2:0.000000},{3:0.000000}>", x, y, z, s);
+                string st=String.Format(Culture.FormatProvider, "<{0:0.000000}, {1:0.000000}, {2:0.000000}, {3:0.000000}>", x, y, z, s);
                 return st;
             }
 
             public static explicit operator string(Quaternion r)
             {
-                string s=String.Format("<{0:0.000000},{1:0.000000},{2:0.000000},{3:0.000000}>", r.x, r.y, r.z, r.s);
+                string s=String.Format(Culture.FormatProvider,"<{0:0.000000}, {1:0.000000}, {2:0.000000}, {3:0.000000}>", r.x, r.y, r.z, r.s);
                 return s;
             }
 
             public static explicit operator LSLString(Quaternion r)
             {
-                string s=String.Format("<{0:0.000000},{1:0.000000},{2:0.000000},{3:0.000000}>", r.x, r.y, r.z, r.s);
+                string s=String.Format(Culture.FormatProvider,"<{0:0.000000}, {1:0.000000}, {2:0.000000}, {3:0.000000}>", r.x, r.y, r.z, r.s);
                 return new LSLString(s);
             }
 
@@ -537,7 +560,7 @@ namespace OpenSim.Region.ScriptEngine.Shared
                         else if (o is LSL_Types.LSLFloat)
                             size += 8;
                         else if (o is LSL_Types.LSLString)
-                            size += ((LSL_Types.LSLString)o).m_string.Length;
+                            size += ((LSL_Types.LSLString)o).m_string == null ? 0 : ((LSL_Types.LSLString)o).m_string.Length;
                         else if (o is LSL_Types.key)
                             size += ((LSL_Types.key)o).value.Length;
                         else if (o is LSL_Types.Vector3)
@@ -545,6 +568,8 @@ namespace OpenSim.Region.ScriptEngine.Shared
                         else if (o is LSL_Types.Quaternion)
                             size += 64;
                         else if (o is int)
+                            size += 4;
+                        else if (o is uint)
                             size += 4;
                         else if (o is string)
                             size += ((string)o).Length;
@@ -719,6 +744,11 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 Data = tmp;
             }
 
+            public static implicit operator Boolean(list l)
+            {
+                return l.Length != 0;
+            }
+
             public static list operator +(list a, LSLString s)
             {
                 a.ExtendAndAdd(s);
@@ -755,7 +785,7 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 int lb = -1;
                 try { la = a.Length; }
                 catch (NullReferenceException) { }
-                try {lb = b.Length;}
+                try { lb = b.Length; }
                 catch (NullReferenceException) { }
 
                 return la != lb;
@@ -1022,6 +1052,9 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 {
                     stride = 1;
                 }
+
+                if ((Data.Length % stride) != 0)
+                    return new list(ret);
 
                 // we can optimize here in the case where stride == 1 and the list
                 // consists of homogeneous types
@@ -1536,8 +1569,6 @@ namespace OpenSim.Region.ScriptEngine.Shared
                     return true;
                 }
             }
-
-
 
             static public implicit operator String(LSLString s)
             {

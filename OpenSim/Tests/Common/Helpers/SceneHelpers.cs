@@ -201,7 +201,7 @@ namespace OpenSim.Tests.Common
             testScene.SetModuleInterfaces();
 
             testScene.LandChannel = new TestLandChannel(testScene);
-            testScene.LoadWorldMap();           
+            testScene.LoadWorldMap();
 
             testScene.RegionInfo.EstateSettings = new EstateSettings();
             testScene.LoginsEnabled = true;
@@ -606,7 +606,7 @@ namespace OpenSim.Tests.Common
         /// <returns></returns>
         public static SceneObjectGroup AddSceneObject(Scene scene)
         {
-            return AddSceneObject(scene, "Test Object", UUID.Zero);
+            return AddSceneObject(scene, "Test Object", UUID.Random());
         }
 
         /// <summary>

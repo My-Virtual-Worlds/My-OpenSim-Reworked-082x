@@ -403,10 +403,7 @@ namespace OpenSim.Capabilities.Handlers
                     return contents;
                 }
                 contents = fetchedContents;
-                InventoryFolderBase containingFolder = new InventoryFolderBase();
-                containingFolder.ID = folderID;
-                containingFolder.Owner = agentID;
-                containingFolder = m_InventoryService.GetFolder(containingFolder);
+                InventoryFolderBase containingFolder = m_InventoryService.GetFolder(agentID, folderID);
 
                 if (containingFolder != null)
                 {
@@ -416,7 +413,7 @@ namespace OpenSim.Capabilities.Handlers
 
                     version = containingFolder.Version;
 
-                    if (fetchItems)
+                    if (fetchItems && containingFolder.Type != (short)FolderType.Trash)
                     {
                         List<InventoryItemBase> itemsToReturn = contents.Items;
                         List<InventoryItemBase> originalItems = new List<InventoryItemBase>(itemsToReturn);
@@ -429,7 +426,7 @@ namespace OpenSim.Capabilities.Handlers
                         {
                             if (item.AssetType == (int)AssetType.Link)
                             {
-                                InventoryItemBase linkedItem = m_InventoryService.GetItem(new InventoryItemBase(item.AssetID));
+                                InventoryItemBase linkedItem = m_InventoryService.GetItem(agentID, item.AssetID);
 
                                 // Take care of genuinely broken links where the target doesn't exist
                                 // HACK: Also, don't follow up links that just point to other links.  In theory this is legitimate,
@@ -441,6 +438,10 @@ namespace OpenSim.Capabilities.Handlers
                         }
 
                         // Now scan for folder links and insert the items they target and those links at the head of the return data
+
+/* dont send contents of LinkFolders.
+from docs seems this was never a spec
+
                         foreach (InventoryItemBase item in originalItems)
                         {
                             if (item.AssetType == (int)AssetType.LinkFolder)
@@ -471,6 +472,7 @@ namespace OpenSim.Capabilities.Handlers
                                 }
                             }
                         }
+*/
                     }
 
 //                    foreach (InventoryItemBase item in contents.Items)
@@ -654,10 +656,7 @@ namespace OpenSim.Capabilities.Handlers
             // Must fetch it individually
             else if (contents.FolderID == UUID.Zero)
             {
-                InventoryFolderBase containingFolder = new InventoryFolderBase();
-                containingFolder.ID = freq.folder_id;
-                containingFolder.Owner = freq.owner_id;
-                containingFolder = m_InventoryService.GetFolder(containingFolder);
+                InventoryFolderBase containingFolder = m_InventoryService.GetFolder(freq.owner_id, freq.folder_id);
 
                 if (containingFolder != null)
                 {
@@ -723,8 +722,8 @@ namespace OpenSim.Capabilities.Handlers
                     if (item.AssetType == (int)AssetType.Link)
                         itemIDs.Add(item.AssetID);
 
-                    else if (item.AssetType == (int)AssetType.LinkFolder)
-                        folderIDs.Add(item.AssetID);
+//                    else if (item.AssetType == (int)AssetType.LinkFolder)
+//                        folderIDs.Add(item.AssetID);
                 }
 
                 //m_log.DebugFormat("[XXX]: folder {0} has {1} links and {2} linkfolders", contents.FolderID, itemIDs.Count, folderIDs.Count);
@@ -754,12 +753,9 @@ namespace OpenSim.Capabilities.Handlers
                         m_log.WarnFormat("[WEB FETCH INV DESC HANDLER]: GetMultipleItems failed. Falling back to fetching inventory items one by one.");
                         linked = new InventoryItemBase[itemIDs.Count];
                         int i = 0;
-                        InventoryItemBase item = new InventoryItemBase();
-                        item.Owner = freq.owner_id;
                         foreach (UUID id in itemIDs)
                         {
-                            item.ID = id;
-                            linked[i++] = m_InventoryService.GetItem(item);
+                            linked[i++] = m_InventoryService.GetItem(freq.owner_id, id);
                         }
                     }
 

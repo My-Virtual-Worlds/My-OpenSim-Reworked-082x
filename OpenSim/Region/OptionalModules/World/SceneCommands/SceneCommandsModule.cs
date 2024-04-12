@@ -166,7 +166,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.Attachments
             cdl.AddRow("physics", m_scene.PhysicsEnabled);
             cdl.AddRow("scripting", m_scene.ScriptsEnabled);
             cdl.AddRow("teleport", m_scene.DebugTeleporting);
-            cdl.AddRow("update-on-timer", m_scene.UpdateOnTimer);
+//            cdl.AddRow("update-on-timer", m_scene.UpdateOnTimer);
             cdl.AddRow("updates", m_scene.DebugUpdates);
 
             MainConsole.Instance.OutputFormat("Scene {0} options:", m_scene.Name);
@@ -225,7 +225,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.Attachments
 
                 // FIXME: This can only come from the console at the moment but might not always be true.
                 if (ConsoleUtil.TryParseConsoleDouble(MainConsole.Instance, options["child-repri"], out newValue))
-                    m_scene.ChildReprioritizationDistance = newValue;                
+                    m_scene.ChildReprioritizationDistance = (float)newValue;                
             }
 
             if (options.ContainsKey("client-pos-upd"))
@@ -313,7 +313,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.Attachments
                 bool enableUpdateOnTimer;
                 if (bool.TryParse(options["update-on-timer"], out enableUpdateOnTimer))
                 {
-                    m_scene.UpdateOnTimer = enableUpdateOnTimer;
+//                    m_scene.UpdateOnTimer = enableUpdateOnTimer;
                     m_scene.Active = false;
 
                     while (m_scene.IsRunning)

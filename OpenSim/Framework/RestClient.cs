@@ -388,9 +388,9 @@ namespace OpenSim.Framework
                             m_log.Error(string.Format("[REST CLIENT] Error fetching resource from server: {0} ", _request.Address.ToString()), e);
                         }
                     }
-
                     return null;
                 }
+
 
                 if (_asyncException != null)
                     throw _asyncException;
@@ -413,7 +413,7 @@ namespace OpenSim.Framework
             _request = (HttpWebRequest) WebRequest.Create(buildUri());
             _request.KeepAlive = false;
             _request.ContentType = "application/xml";
-            _request.Timeout = 900000;
+            _request.Timeout = 90000;
             _request.Method = RequestMethod;
             _asyncException = null;
             _request.ContentLength = src.Length;
@@ -428,14 +428,18 @@ namespace OpenSim.Framework
             if (WebUtil.DebugLevel >= 5)
                 WebUtil.LogOutgoingDetail(string.Format("SEND {0}: ", reqnum), src);
 
-            Stream dst = _request.GetRequestStream();
-
-            byte[] buf = new byte[1024];
-            int length = src.Read(buf, 0, 1024);
-            while (length > 0)
+            using (Stream dst = _request.GetRequestStream())
             {
-                dst.Write(buf, 0, length);
-                length = src.Read(buf, 0, 1024);
+                m_log.Info("[REST]: GetRequestStream is ok");
+
+                byte[] buf = new byte[1024];
+                int length = src.Read(buf, 0, 1024);
+                m_log.Info("[REST]: First Read is ok");
+                while (length > 0)
+                {
+                    dst.Write(buf, 0, length);
+                    length = src.Read(buf, 0, 1024);
+                }
             }
 
             try
@@ -468,7 +472,8 @@ namespace OpenSim.Framework
                 }
             }
 
-            _response.Close();
+            if (_response != null)
+                _response.Close();
 
 //            IAsyncResult responseAsyncResult = _request.BeginGetResponse(new AsyncCallback(ResponseIsReadyDelegate), _request);
 

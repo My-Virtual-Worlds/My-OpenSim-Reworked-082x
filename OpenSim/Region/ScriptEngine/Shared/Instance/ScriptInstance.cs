@@ -51,7 +51,8 @@ using OpenSim.Region.ScriptEngine.Shared.Api.Runtime;
 using OpenSim.Region.ScriptEngine.Shared.ScriptBase;
 using OpenSim.Region.ScriptEngine.Shared.CodeTools;
 using OpenSim.Region.ScriptEngine.Interfaces;
-using System.Diagnostics;
+
+using System.Diagnostics; //for [DebuggerNonUserCode]
 
 namespace OpenSim.Region.ScriptEngine.Shared.Instance
 {
@@ -256,8 +257,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             StartParam = startParam;
             m_MaxScriptQueue = maxScriptQueue;
             m_postOnRez = postOnRez;
-            m_AttachedAvatar = Part.ParentGroup.AttachedAvatar;
-            m_RegionID = Part.ParentGroup.Scene.RegionInfo.RegionID;
+            m_AttachedAvatar = part.ParentGroup.AttachedAvatar;
+            m_RegionID = part.ParentGroup.Scene.RegionInfo.RegionID;
 
             m_SaveState = StatePersistedHere;
 
@@ -456,27 +457,34 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     PostEvent(new EventParams("attach",
                         new object[] { new LSL_Types.LSLString(m_AttachedAvatar.ToString()) }, new DetectParams[0]));
                 }
+
             }
         }
 
         private void ReleaseControls()
         {
-            int permsMask;
-            UUID permsGranter;
-            lock (Part.TaskInventory)
+            SceneObjectPart part = Engine.World.GetSceneObjectPart(LocalID);
+            
+            if (part != null)
             {
-                if (!Part.TaskInventory.ContainsKey(ItemID))
+                int permsMask;
+                UUID permsGranter;
+                part.TaskInventory.LockItemsForRead(true);
+                if (!part.TaskInventory.ContainsKey(ItemID))
+                {
+                    part.TaskInventory.LockItemsForRead(false);
                     return;
+                }
+                permsGranter = part.TaskInventory[ItemID].PermsGranter;
+                permsMask = part.TaskInventory[ItemID].PermsMask;
+                part.TaskInventory.LockItemsForRead(false);
 
-                permsGranter = Part.TaskInventory[ItemID].PermsGranter;
-                permsMask = Part.TaskInventory[ItemID].PermsMask;
-            }
-
-            if ((permsMask & ScriptBaseClass.PERMISSION_TAKE_CONTROLS) != 0)
-            {
-                ScenePresence presence = Engine.World.GetScenePresence(permsGranter);
-                if (presence != null)
-                    presence.UnRegisterControlEventsToScript(LocalID, ItemID);
+                if ((permsMask & ScriptBaseClass.PERMISSION_TAKE_CONTROLS) != 0)
+                {
+                    ScenePresence presence = Engine.World.GetScenePresence(permsGranter);
+                    if (presence != null)
+                        presence.UnRegisterControlEventsToScript(LocalID, ItemID);
+                }
             }
         }
 
@@ -639,6 +647,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             return true;
         }
 
+        [DebuggerNonUserCode] //Prevents the debugger from farting in this function
         public void SetState(string state)
         {
             if (state == State)
@@ -764,6 +773,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
         /// <returns></returns>
         public object EventProcessor()
         {
+            EventParams data = null;
             // We check here as the thread stopping this instance from running may itself hold the m_Script lock.
             if (!Running)
                 return 0;
@@ -850,7 +860,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                         Part.ParentGroup.UUID,
                         Part.AbsolutePosition,
                         Part.ParentGroup.Scene.Name);
-
                 AsyncCommandManager.StateChange(Engine,
                     LocalID, ItemID);
                 // we are effectively in the new state now, so we can resume queueing
@@ -866,6 +875,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                 {
                     //                        m_log.DebugFormat("[Script] Delivered event {2} in state {3} to {0}.{1}",
                     //                                PrimName, ScriptName, data.EventName, State);
+
 
                     try
                     {
@@ -931,15 +941,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                             catch (Exception)
                             {
                             }
-                            // catch (Exception e2) // LEGIT: User Scripting
-                            // {
-                            // m_log.Error("[SCRIPT]: "+
-                            //           "Error displaying error in-world: " +
-                            //         e2.ToString());
-                            //    m_log.Error("[SCRIPT]: " +
-                            //              "Errormessage: Error compiling script:\r\n" +
-                            //            e.ToString());
-                            // }
                         }
                         else if ((e is TargetInvocationException) && (e.InnerException is SelfDeleteException))
                         {
@@ -1012,15 +1013,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             ReleaseControls();
 
             Stop(timeout);
-            Part.Inventory.GetInventoryItem(ItemID).PermsMask = 0;
-            Part.Inventory.GetInventoryItem(ItemID).PermsGranter = UUID.Zero;
+            SceneObjectPart part = Engine.World.GetSceneObjectPart(LocalID);
+            part.Inventory.GetInventoryItem(ItemID).PermsMask = 0;
+            part.Inventory.GetInventoryItem(ItemID).PermsGranter = UUID.Zero;
+            part.CollisionSound = UUID.Zero;
             AsyncCommandManager.RemoveScript(Engine, LocalID, ItemID);
+
+            m_TimerQueued = false;
+            m_StateChangeInProgress = false;
             EventQueue.Clear();
+
             m_Script.ResetVars();
             StartParam = 0;
             State = "default";
 
-            Part.SetScriptEvents(ItemID,
+
+            part.SetScriptEvents(ItemID,
                                  (int)m_Script.GetStateEventFlags(State));
             if (running)
                 Start();
@@ -1031,6 +1039,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     new Object[0], new DetectParams[0]));
         }
 
+        [DebuggerNonUserCode] //Stops the VS debugger from farting in this function
         public void ApiResetScript()
         {
             // bool running = Running;
@@ -1039,17 +1048,21 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             ReleaseControls();
 
             m_Script.ResetVars();
-            Part.Inventory.GetInventoryItem(ItemID).PermsMask = 0;
-            Part.Inventory.GetInventoryItem(ItemID).PermsGranter = UUID.Zero;
+            SceneObjectPart part = Engine.World.GetSceneObjectPart(LocalID);
+            part.Inventory.GetInventoryItem(ItemID).PermsMask = 0;
+            part.Inventory.GetInventoryItem(ItemID).PermsGranter = UUID.Zero;
+            part.CollisionSound = UUID.Zero;
             AsyncCommandManager.RemoveScript(Engine, LocalID, ItemID);
 
+            m_TimerQueued = false;
+            m_StateChangeInProgress = false;
             EventQueue.Clear();
             m_Script.ResetVars();
             string oldState = State;
             StartParam = 0;
             State = "default";
 
-            Part.SetScriptEvents(ItemID,
+            part.SetScriptEvents(ItemID,
                                  (int)m_Script.GetStateEventFlags(State));
 
             if (m_CurrentEvent != "state_entry" || oldState != "default")
